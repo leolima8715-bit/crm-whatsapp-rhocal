@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
+import InboxShell from "@/components/inbox/InboxShell";
 
 const roleLabel: Record<string, string> = {
   gestor: "Gestor",
@@ -24,33 +26,43 @@ export default async function InboxPage() {
     .single();
 
   return (
-    <main className="min-h-screen p-8">
-      <header className="flex items-center justify-between border-b border-cyber-line pb-4">
+    <main className="flex h-screen flex-col">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-cyber-line bg-cyber-panel px-5">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-cyber-cyan">
-            CRM WhatsApp
+          <p className="font-mono text-[10px] uppercase tracking-widest text-cyber-cyan">
+            CRM WhatsApp · RHOCAL
           </p>
-          <h1 className="text-xl font-bold">
-            {profile ? `Olá, ${profile.full_name}` : "Olá"}
-          </h1>
-          {profile && (
-            <p className="text-sm text-cyber-white/60">
-              Perfil: {roleLabel[profile.role] ?? profile.role}
-            </p>
-          )}
+          <p className="text-sm font-bold">
+            {profile
+              ? `${profile.full_name} · ${roleLabel[profile.role] ?? profile.role}`
+              : "Sem perfil"}
+          </p>
         </div>
-        <LogoutButton />
+
+        <span className="hidden rounded-full border border-cyber-amber/40 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-cyber-amber md:inline">
+          Dados de teste
+        </span>
+
+        <div className="flex items-center gap-3">
+          {profile?.role === "gestor" && (
+            <Link
+              href="/numeros"
+              className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+            >
+              Números
+            </Link>
+          )}
+          <LogoutButton />
+        </div>
       </header>
 
-      {!profile && (
-        <p className="mt-6 text-cyber-orange">
+      {profile ? (
+        <InboxShell />
+      ) : (
+        <p className="p-8 text-cyber-orange">
           Seu usuário ainda não tem perfil. Peça ao gestor para liberar o acesso.
         </p>
       )}
-
-      <p className="mt-8 text-cyber-white/60">
-        O inbox de conversas vai aparecer aqui.
-      </p>
     </main>
   );
 }
