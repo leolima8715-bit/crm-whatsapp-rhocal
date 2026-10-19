@@ -46,13 +46,27 @@ export default async function InboxPage() {
 
         <div className="flex items-center gap-3">
           {profile?.role === "gestor" && (
-            <Link
-              href="/numeros"
-              className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
-            >
-              Números
-            </Link>
+            <>
+              <Link
+                href="/numeros"
+                className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+              >
+                Números
+              </Link>
+              <Link
+                href="/usuarios"
+                className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+              >
+                Usuários
+              </Link>
+            </>
           )}
+          <Link
+            href="/conta"
+            className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+          >
+            Minha conta
+          </Link>
           <LogoutButton />
         </div>
       </header>
