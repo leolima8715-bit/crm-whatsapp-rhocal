@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { fetchConversations } from "@/lib/inbox-queries";
 import LogoutButton from "@/components/LogoutButton";
 import InboxShell from "@/components/inbox/InboxShell";
+
+export const dynamic = "force-dynamic";
 
 const roleLabel: Record<string, string> = {
   gestor: "Gestor",
@@ -25,6 +28,8 @@ export default async function InboxPage() {
     .eq("id", user.id)
     .single();
 
+  const conversations = profile ? await fetchConversations(supabase, 100) : [];
+
   return (
     <main className="flex h-screen flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-cyber-line bg-cyber-panel px-5">
@@ -38,10 +43,6 @@ export default async function InboxPage() {
               : "Sem perfil"}
           </p>
         </div>
-
-        <span className="hidden rounded-full border border-cyber-amber/40 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-cyber-amber md:inline">
-          Dados de teste
-        </span>
 
         <div className="flex items-center gap-3">
           {profile?.role === "gestor" && (
@@ -57,7 +58,7 @@ export default async function InboxPage() {
       </header>
 
       {profile ? (
-        <InboxShell />
+        <InboxShell initialConversations={conversations} currentUserId={user.id} />
       ) : (
         <p className="p-8 text-cyber-orange">
           Seu usuário ainda não tem perfil. Peça ao gestor para liberar o acesso.

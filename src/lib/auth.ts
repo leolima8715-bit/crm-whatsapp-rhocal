@@ -10,6 +10,15 @@ export class HttpError extends Error {
   }
 }
 
+export async function requireUser() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new HttpError("Não autenticado.", 401);
+  return { supabase, user };
+}
+
 export async function requireGestor() {
   const supabase = createClient();
   const {
