@@ -1,3 +1,4 @@
+import { HEX_COLOR_RE } from "@/lib/sector-style";
 import { HttpError } from "@/lib/auth";
 import type { Admin } from "@/lib/users";
 
@@ -33,4 +34,11 @@ export async function assertSectorNameFree(
       409
     );
   }
+}
+
+export function validateSectorColor(v: unknown): string {
+  if (typeof v !== "string" || !HEX_COLOR_RE.test(v)) {
+    throw new HttpError("Cor inválida. Use o formato #RRGGBB.", 400);
+  }
+  return v.toUpperCase();
 }

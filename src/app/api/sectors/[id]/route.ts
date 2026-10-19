@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireGestor } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { assertSectorNameFree, validateSectorName } from "@/lib/sectors";
+import { assertSectorNameFree, validateSectorColor, validateSectorName } from "@/lib/sectors";
 import { isUuid } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +21,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!sector) throw new HttpError("Setor não encontrado.", 404);
 
     const body = await req.json().catch(() => ({}));
-    const update: { name?: string; archived?: boolean } = {};
+    const update: { name?: string; archived?: boolean; color?: string } = {};
 
     if (body?.name !== undefined) {
       const name = validateSectorName(body.name);
       if (name !== sector.name) await assertSectorNameFree(admin, orgId, name, sector.id);
       update.name = name;
     }
+    if (body?.color !== undefined) update.color = validateSectorColor(body.color);
     if (body?.archived !== undefined) {
       // Nada é apagado: o setor só é arquivado.
       if (body.archived !== true) throw new HttpError("Valor inválido.", 400);

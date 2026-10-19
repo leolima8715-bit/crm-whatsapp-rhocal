@@ -20,7 +20,12 @@ export type ConversationRow = {
     document: string | null;
     notes: string | null;
   } | null;
-  instance: { label: string; phone: string | null } | null;
+  instance: {
+    label: string;
+    phone: string | null;
+    sector_id: string | null;
+    sector: { id: string; name: string; color: string | null } | null;
+  } | null;
   assignee: { full_name: string } | null;
 };
 
@@ -42,7 +47,7 @@ export type MessageRow = {
 };
 
 export type Assignee = { id: string; full_name: string; role: string; sector_ids: string[] };
-export type SectorOption = { id: string; name: string };
+export type SectorOption = { id: string; name: string; color?: string | null };
 
 export type TransferEntry = {
   id: string;
@@ -53,4 +58,29 @@ export type TransferEntry = {
   to_name: string | null;
   from_sector: string | null;
   to_sector: string | null;
+};
+
+export type Tag = { id: string; name: string; color: string };
+export type ContactTagsMap = Record<string, string[]>;
+export type QuickReply = { id: string; shortcut: string; body: string; created_by: string };
+export type NoteEntry = { id: string; body: string; created_at: string; author_name: string | null };
+
+export type Stage = { id: string; name: string; position: number; color: string };
+export type Owner = { id: string; full_name: string };
+export type Deal = {
+  id: string;
+  contact_id: string;
+  stage_id: string;
+  title: string;
+  value: number;
+  owner_id: string;
+  status: "open" | "won" | "lost";
+  lost_reason: string | null;
+  position: number;
+  created_at: string;
+  contact_name: string;
+  contact_phone: string;
+  owner_name: string | null;
+  tag_ids: string[];
+  conversation_id: string | null;
 };

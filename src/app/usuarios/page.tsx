@@ -29,7 +29,7 @@ export default async function UsuariosPage() {
     listOrgUsers(profile.org_id),
     admin
       .from("sectors")
-      .select("id, name")
+      .select("id, name, color")
       .eq("org_id", profile.org_id)
       .eq("archived", false)
       .order("name", { ascending: true }),
@@ -57,7 +57,7 @@ export default async function UsuariosPage() {
 
       <UsuariosManager
         users={users}
-        sectors={(sectors ?? []) as { id: string; name: string }[]}
+        sectors={(sectors ?? []) as { id: string; name: string; color: string | null }[]}
         currentUserId={user.id}
       />
     </main>

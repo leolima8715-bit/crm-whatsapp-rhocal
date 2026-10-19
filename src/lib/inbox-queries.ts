@@ -5,7 +5,7 @@ import type { ConversationRow, MessageRow } from "@/lib/inbox-types";
 export const CONVERSATION_SELECT =
   "id, contact_id, instance_id, assigned_to, sector_id, status, unread_count, last_message_at, last_message_preview, " +
   "contact:contacts(name, push_name, phone, company, email, document, notes), " +
-  "instance:whatsapp_instances(label, phone), " +
+  "instance:whatsapp_instances(label, phone, sector_id, sector:sectors(id, name, color)), " +
   "assignee:profiles!assigned_to(full_name)";
 
 export const MESSAGE_SELECT =

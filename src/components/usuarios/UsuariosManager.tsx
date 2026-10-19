@@ -6,7 +6,7 @@ import { KeyRound, Loader2, Pencil, Plus, Power, X } from "lucide-react";
 import type { OrgUser, Role } from "@/lib/users";
 import SectorsSection from "./SectorsSection";
 
-type Sector = { id: string; name: string };
+type Sector = { id: string; name: string; color: string | null };
 
 const roleLabel: Record<Role, string> = {
   gestor: "Gestor",

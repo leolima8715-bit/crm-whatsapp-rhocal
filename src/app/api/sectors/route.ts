@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireGestor } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { assertSectorNameFree, validateSectorName } from "@/lib/sectors";
+import { assertSectorNameFree, validateSectorColor, validateSectorName } from "@/lib/sectors";
+import { nextPaletteColor } from "@/lib/sector-style";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function GET() {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("sectors")
-      .select("id, name")
+      .select("id, name, color")
       .eq("org_id", orgId)
       .eq("archived", false)
       .order("name", { ascending: true });
@@ -31,10 +32,23 @@ export async function POST(req: Request) {
     const admin = createAdminClient();
     await assertSectorNameFree(admin, orgId, name);
 
+    // Sem cor informada: a primeira da paleta que ainda não está em uso.
+    let color: string;
+    if (body?.color !== undefined) {
+      color = validateSectorColor(body.color);
+    } else {
+      const { data: existing } = await admin
+        .from("sectors")
+        .select("color")
+        .eq("org_id", orgId)
+        .eq("archived", false);
+      color = nextPaletteColor((existing ?? []).map((s) => s.color));
+    }
+
     const { data, error } = await admin
       .from("sectors")
-      .insert({ org_id: orgId, name })
-      .select("id, name")
+      .insert({ org_id: orgId, name, color })
+      .select("id, name, color")
       .single();
     if (error) {
       if (error.code === "23505") {

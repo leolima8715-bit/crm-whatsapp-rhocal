@@ -18,7 +18,7 @@ export async function GET() {
         .order("full_name", { ascending: true }),
       admin
         .from("sectors")
-        .select("id, name")
+        .select("id, name, color")
         .eq("org_id", profile.org_id)
         .eq("archived", false)
         .order("name", { ascending: true }),

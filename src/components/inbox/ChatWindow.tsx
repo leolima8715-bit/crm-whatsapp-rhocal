@@ -6,8 +6,16 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchMessages } from "@/lib/inbox-queries";
 import { displayName, formatTime, initials } from "@/lib/format";
 import { baseMime, kindFromMime, validateFileClient } from "@/lib/media";
-import type { Assignee, ConversationRow, MessageRow, SectorOption } from "@/lib/inbox-types";
+import type {
+  Assignee,
+  ConversationRow,
+  MessageRow,
+  QuickReply,
+  SectorOption,
+} from "@/lib/inbox-types";
+import { conversationSector, sectorStyle } from "@/lib/sector-style";
 import AttachmentPanel from "./AttachmentPanel";
+import SectorTag from "./SectorTag";
 import ConversationActions from "./ConversationActions";
 import MediaContent from "./MediaContent";
 import VoiceRecorder from "./VoiceRecorder";
@@ -91,6 +99,8 @@ export default function ChatWindow({
   assignees,
   sectors,
   onChanged,
+  quickReplies,
+  currentUserName,
 }: {
   conversation: ConversationRow | null;
   currentUserId: string;
@@ -98,6 +108,8 @@ export default function ChatWindow({
   assignees: Assignee[];
   sectors: SectorOption[];
   onChanged: (conversationId: string, movedTo?: string) => void;
+  quickReplies: QuickReply[];
+  currentUserName: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const conversationId = conversation?.id ?? null;
@@ -116,6 +128,26 @@ export default function ChatWindow({
   const [recording, setRecording] = useState(false);
   const [canRecord, setCanRecord] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  // Respostas rápidas: menu ao digitar "/" no início do campo.
+  const [qrIndex, setQrIndex] = useState(0);
+  const [qrDismissed, setQrDismissed] = useState(false);
+  const qrMatches = useMemo(() => {
+    if (qrDismissed || !/^\/[a-z0-9-]*$/i.test(text)) return [];
+    const typed = text.toLowerCase();
+    return quickReplies.filter((r) => r.shortcut.startsWith(typed)).slice(0, 8);
+  }, [text, quickReplies, qrDismissed]);
+
+  function insertQuickReply(r: QuickReply) {
+    const contactName =
+      conversation?.contact?.name || conversation?.contact?.push_name || "";
+    setText(
+      r.body
+        .replace(/\{nome\}/gi, contactName)
+        .replace(/\{atendente\}/gi, currentUserName)
+    );
+    setQrIndex(0);
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -413,6 +445,7 @@ export default function ChatWindow({
   }
 
   const name = displayName(conversation.contact);
+  const sector = conversationSector(conversation, sectors);
 
   return (
     <section
@@ -434,12 +467,18 @@ export default function ChatWindow({
         </div>
       )}
 
-      <header className="flex items-center gap-3 border-b border-cyber-line px-5 py-3">
+      <header
+        style={{ borderBottom: `2px solid ${sectorStyle(sector.color).stripe}` }}
+        className="flex items-center gap-3 px-5 py-3"
+      >
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
           {initials(name)}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-bold">{name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-sm font-bold">{name}</h2>
+            <SectorTag sector={sector} />
+          </div>
           <p className="truncate text-xs text-cyber-white/60">
             {conversation.contact?.company ?? ""}
           </p>
@@ -564,21 +603,74 @@ export default function ChatWindow({
             >
               <Paperclip size={18} />
             </button>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onPaste={onPaste}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              rows={1}
-              maxLength={4096}
-              placeholder="Digite uma mensagem..."
-              className="max-h-32 flex-1 resize-none rounded-lg border border-cyber-line bg-cyber-panel px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
-            />
+            <div className="relative flex-1">
+              {qrMatches.length > 0 && (
+                <ul
+                  role="listbox"
+                  className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-56 overflow-y-auto rounded-lg border border-cyber-line bg-cyber-panel shadow-lg"
+                >
+                  {qrMatches.map((r, i) => (
+                    <li key={r.id} role="option" aria-selected={i === qrIndex}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          insertQuickReply(r);
+                        }}
+                        onMouseEnter={() => setQrIndex(i)}
+                        className={`flex w-full flex-col px-3 py-2 text-left text-sm ${
+                          i === qrIndex ? "bg-cyber-bg" : ""
+                        }`}
+                      >
+                        <span className="font-mono text-xs text-cyber-cyan">{r.shortcut}</span>
+                        <span className="truncate text-xs text-cyber-white/70">{r.body}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <textarea
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setQrDismissed(false);
+                  setQrIndex(0);
+                }}
+                onPaste={onPaste}
+                onKeyDown={(e) => {
+                  if (qrMatches.length > 0) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setQrIndex((i) => (i + 1) % qrMatches.length);
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setQrIndex((i) => (i - 1 + qrMatches.length) % qrMatches.length);
+                      return;
+                    }
+                    if (e.key === "Enter" || e.key === "Tab") {
+                      e.preventDefault();
+                      insertQuickReply(qrMatches[Math.min(qrIndex, qrMatches.length - 1)]);
+                      return;
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setQrDismissed(true);
+                      return;
+                    }
+                  }
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                rows={1}
+                maxLength={4096}
+                placeholder="Digite uma mensagem ou / para respostas rápidas..."
+                className="max-h-32 w-full resize-none rounded-lg border border-cyber-line bg-cyber-panel px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
+              />
+            </div>
             {text.trim() || !canRecord ? (
               <button
                 onClick={send}

@@ -1,6 +1,9 @@
 "use client";
 
-import type { Assignee, ConversationRow } from "@/lib/inbox-types";
+import type { Assignee, ContactTagsMap, ConversationRow, SectorOption, Tag } from "@/lib/inbox-types";
+import { conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
+import TagChip from "./TagChip";
+import SectorTag from "./SectorTag";
 import { displayName, initials, previewLabel, relativeTime } from "@/lib/format";
 
 export type Tab = "all" | "mine" | "unassigned";
@@ -11,6 +14,8 @@ export type Filters = {
   status: StatusFilter;
   assignee: string; // "" = todos
   instance: string; // "" = todos
+  tag: string; // "" = todas
+  sector: string; // "" = todos, "none" = sem setor, senão id do setor
 };
 
 type Props = {
@@ -26,7 +31,25 @@ type Props = {
   isGestor: boolean;
   assignees: Assignee[];
   instances: { id: string; label: string }[];
+  tags: Tag[];
+  contactTags: ContactTagsMap;
+  sectors: SectorOption[];
+  sectorChips: SectorInfo[];
 };
+
+function ListTags({ tags, ids }: { tags: Tag[]; ids: string[] | undefined }) {
+  if (!ids?.length) return null;
+  const mine = ids.map((id) => tags.find((t) => t.id === id)).filter(Boolean) as Tag[];
+  if (mine.length === 0) return null;
+  return (
+    <div className="mt-1 flex items-center gap-1 overflow-hidden">
+      {mine.slice(0, 2).map((t) => (
+        <TagChip key={t.id} tag={t} small />
+      ))}
+      {mine.length > 2 && <span className="text-[9px] text-cyber-white/50">+{mine.length - 2}</span>}
+    </div>
+  );
+}
 
 const selectCls =
   "w-full rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-xs outline-none focus:border-cyber-cyan";
@@ -44,6 +67,10 @@ export default function ConversationList({
   isGestor,
   assignees,
   instances,
+  tags,
+  contactTags,
+  sectors,
+  sectorChips,
 }: Props) {
   const tabs: { id: Tab; label: string; count: number; extra?: number }[] = [
     { id: "all", label: "Todas", count: counts.all },
@@ -61,6 +88,45 @@ export default function ConversationList({
           onChange={(e) => onSearch(e.target.value)}
           className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
         />
+
+        {sectorChips.length > 0 && (
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por setor">
+            <button
+              onClick={() => onFilters({ ...filters, sector: "" })}
+              aria-pressed={filters.sector === ""}
+              className={`rounded-full border px-2.5 py-1 text-[11px] leading-tight transition ${
+                filters.sector === ""
+                  ? "border-cyber-cyan bg-cyber-cyan/10 text-cyber-cyan"
+                  : "border-cyber-line text-cyber-white/70 hover:border-cyber-cyan/50"
+              }`}
+            >
+              Todos
+            </button>
+            {sectorChips.map((s) => {
+              const key = s.id ?? "none";
+              const active = filters.sector === key;
+              const st = sectorStyle(s.color);
+              return (
+                <button
+                  key={key}
+                  onClick={() => onFilters({ ...filters, sector: active ? "" : key })}
+                  aria-pressed={active}
+                  style={active ? { borderColor: st.stripe, backgroundColor: st.bg } : undefined}
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] leading-tight transition ${
+                    active ? "text-cyber-white" : "border-cyber-line text-cyber-white/70 hover:border-cyber-white/30"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    style={{ backgroundColor: st.stripe }}
+                    className="h-2 w-2 shrink-0 rounded-full border border-cyber-white/30"
+                  />
+                  <span className="truncate">{s.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex gap-1">
           {tabs.map((t) => (
@@ -95,6 +161,22 @@ export default function ConversationList({
           <option value="resolved">Resolvidas</option>
           <option value="all">Todas</option>
         </select>
+
+        {tags.length > 0 && (
+          <select
+            value={filters.tag}
+            onChange={(e) => onFilters({ ...filters, tag: e.target.value })}
+            aria-label="Filtrar por tag"
+            className={selectCls}
+          >
+            <option value="">Tag: todas</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         {isGestor && (
           <div className="flex gap-2">
@@ -140,14 +222,20 @@ export default function ConversationList({
 
         {conversations.map((c) => {
           const name = displayName(c.contact);
+          const sector = conversationSector(c, sectors);
           return (
             <li key={c.id}>
               <button
                 onClick={() => onSelect(c.id)}
-                className={`flex w-full items-center gap-3 border-b border-cyber-line px-4 py-3 text-left transition hover:bg-cyber-bg/60 ${
+                className={`relative flex w-full items-center gap-3 border-b border-cyber-line px-4 py-3 text-left transition hover:bg-cyber-bg/60 ${
                   selectedId === c.id ? "bg-cyber-bg" : ""
                 }`}
               >
+                <span
+                  aria-hidden
+                  style={{ backgroundColor: sectorStyle(sector.color).stripe }}
+                  className="absolute inset-y-0 left-0 w-1"
+                />
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
                   {initials(name)}
                 </div>
@@ -171,12 +259,16 @@ export default function ConversationList({
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-cyber-white/40">
-                    {c.instance?.label ?? "Sem número"} ·{" "}
-                    {c.assignee?.full_name ??
-                      assignees.find((a) => a.id === c.assigned_to)?.full_name ??
-                      (c.assigned_to ? "Responsável" : "Sem responsável")}
-                  </p>
+                  <ListTags tags={tags} ids={contactTags[c.contact_id]} />
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <SectorTag sector={sector} className="max-w-[45%]" />
+                    <p className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-wider text-cyber-white/40">
+                      {c.instance?.label ?? "Sem número"} ·{" "}
+                      {c.assignee?.full_name ??
+                        assignees.find((a) => a.id === c.assigned_to)?.full_name ??
+                        (c.assigned_to ? "Responsável" : "Sem responsável")}
+                    </p>
+                  </div>
                 </div>
               </button>
             </li>

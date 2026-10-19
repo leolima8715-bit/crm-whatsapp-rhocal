@@ -3,8 +3,61 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Check, Loader2, Pencil, Plus, X } from "lucide-react";
+import { nextPaletteColor, normalizeColor, SECTOR_PALETTE } from "@/lib/sector-style";
 
-type Sector = { id: string; name: string };
+type Sector = { id: string; name: string; color: string | null };
+
+function ColorPicker({
+  value,
+  onPick,
+  disabled,
+  label,
+}: {
+  value: string;
+  onPick: (color: string) => void;
+  disabled?: boolean;
+  label: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={label}
+        aria-expanded={open}
+        title="Alterar cor"
+        style={{ backgroundColor: value }}
+        className="h-5 w-5 rounded-full border border-cyber-white/30 transition hover:scale-110 disabled:opacity-50"
+      />
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-7 z-20 grid grid-cols-4 gap-2 rounded-lg border border-cyber-line bg-cyber-bg p-3 shadow-xl">
+            {SECTOR_PALETTE.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={`Cor ${c}`}
+                onClick={() => {
+                  setOpen(false);
+                  if (c !== value) onPick(c);
+                }}
+                style={{ backgroundColor: c }}
+                className={`flex h-6 w-6 items-center justify-center rounded-full transition hover:scale-110 ${
+                  c === value ? "ring-2 ring-cyber-white ring-offset-2 ring-offset-cyber-bg" : ""
+                }`}
+              >
+                {c === value && <Check size={12} className="text-cyber-bg" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 async function api(url: string, method: string, body?: unknown) {
   const res = await fetch(url, {
@@ -24,6 +77,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -42,12 +96,15 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
     }
   }
 
+  const defaultColor = nextPaletteColor(sectors.map((s) => s.color));
+
   function create(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
     run("new", async () => {
-      await api("/api/sectors", "POST", { name: newName });
+      await api("/api/sectors", "POST", { name: newName, color: newColor ?? defaultColor });
       setNewName("");
+      setNewColor(null);
       setAdding(false);
     });
   }
@@ -57,6 +114,12 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
     run(id, async () => {
       await api(`/api/sectors/${id}`, "PATCH", { name: editName });
       setEditingId(null);
+    });
+  }
+
+  function recolor(id: string, color: string) {
+    run(id, async () => {
+      await api(`/api/sectors/${id}`, "PATCH", { color });
     });
   }
 
@@ -91,7 +154,12 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
       )}
 
       {adding && (
-        <form onSubmit={create} className="mb-3 flex gap-2">
+        <form onSubmit={create} className="mb-3 flex items-center gap-2">
+          <ColorPicker
+            value={newColor ?? defaultColor}
+            onPick={setNewColor}
+            label="Escolher cor do novo setor"
+          />
           <input
             autoFocus
             value={newName}
@@ -112,6 +180,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
             onClick={() => {
               setAdding(false);
               setNewName("");
+              setNewColor(null);
               setError(null);
             }}
             aria-label="Cancelar"
@@ -129,7 +198,13 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
       ) : (
         <ul className="divide-y divide-cyber-line rounded-lg border border-cyber-line bg-cyber-panel">
           {sectors.map((s) => (
-            <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+              <ColorPicker
+                value={normalizeColor(s.color)}
+                onPick={(c) => recolor(s.id, c)}
+                disabled={busy === s.id}
+                label={`Alterar cor do setor ${s.name}`}
+              />
               {editingId === s.id ? (
                 <form onSubmit={(e) => rename(e, s.id)} className="flex flex-1 gap-2">
                   <input
@@ -161,7 +236,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
                 </form>
               ) : (
                 <>
-                  <span className="truncate text-sm">{s.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{s.name}</span>
                   <div className="flex shrink-0 gap-2">
                     <button
                       disabled={busy === s.id}

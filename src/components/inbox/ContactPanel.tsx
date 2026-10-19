@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { ConversationRow, SectorOption, TransferEntry } from "@/lib/inbox-types";
+import type { ConversationRow, SectorOption, Tag, TransferEntry } from "@/lib/inbox-types";
+import { DealSection, NotesSection, TagsSection } from "./ContactExtras";
 import { displayName, formatPhone, initials } from "@/lib/format";
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
@@ -204,10 +205,20 @@ export default function ContactPanel({
   conversation,
   sectors,
   onContactSaved,
+  isGestor,
+  tags,
+  contactTagIds,
+  onTagsChange,
+  onTagCreated,
 }: {
   conversation: ConversationRow | null;
   sectors: SectorOption[];
   onContactSaved: (contactId: string, fields: Partial<ContactFields>) => void;
+  isGestor: boolean;
+  tags: Tag[];
+  contactTagIds: string[];
+  onTagsChange: (contactId: string, tagIds: string[]) => void;
+  onTagCreated: (tag: Tag) => void;
 }) {
   if (!conversation) return null;
 
@@ -242,6 +253,27 @@ export default function ContactPanel({
       </dl>
 
       <div className="mt-6 border-t border-cyber-line pt-5">
+        <TagsSection
+          key={`tags-${conversation.contact_id}`}
+          contactId={conversation.contact_id}
+          tags={tags}
+          selectedIds={contactTagIds}
+          isGestor={isGestor}
+          onChange={(ids) => onTagsChange(conversation.contact_id, ids)}
+          onTagCreated={onTagCreated}
+        />
+      </div>
+
+      <div className="mt-6 border-t border-cyber-line pt-5">
+        <DealSection
+          key={`deal-${conversation.contact_id}`}
+          contactId={conversation.contact_id}
+          contactName={name}
+          isGestor={isGestor}
+        />
+      </div>
+
+      <div className="mt-6 border-t border-cyber-line pt-5">
         <ContactForm
           key={conversation.contact_id}
           conversation={conversation}
@@ -252,6 +284,10 @@ export default function ContactPanel({
       <div className="mt-6 border-t border-cyber-line pt-5">
         <h4 className={`${labelCls} mb-3`}>Histórico de transferências</h4>
         <TransferHistory key={conversation.id} conversation={conversation} />
+      </div>
+
+      <div className="mt-6 border-t border-cyber-line pt-5">
+        <NotesSection key={`notes-${conversation.contact_id}`} contactId={conversation.contact_id} />
       </div>
     </aside>
   );

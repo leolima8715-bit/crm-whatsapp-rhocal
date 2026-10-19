@@ -4,7 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
-import type { Assignee, ConversationRow, SectorOption } from "@/lib/inbox-types";
+import type {
+  Assignee,
+  ContactTagsMap,
+  ConversationRow,
+  QuickReply,
+  SectorOption,
+  Tag,
+} from "@/lib/inbox-types";
+import { conversationSector, sectorInfo, type SectorInfo } from "@/lib/sector-style";
 import ConversationList, { type Filters } from "./ConversationList";
 import ChatWindow from "./ChatWindow";
 import ContactPanel from "./ContactPanel";
@@ -21,16 +29,22 @@ export default function InboxShell({
   initialConversations,
   currentUserId,
   currentRole,
+  currentUserName,
+  initialContactTags,
+  initialSelectedId,
 }: {
   initialConversations: ConversationRow[];
   currentUserId: string;
   currentRole: string;
+  currentUserName: string;
+  initialContactTags: ContactTagsMap;
+  initialSelectedId: string | null;
 }) {
   const isGestor = currentRole === "gestor";
   const supabase = useMemo(() => createClient(), []);
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(
-    initialConversations[0]?.id ?? null
+    initialSelectedId ?? initialConversations[0]?.id ?? null
   );
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>({
@@ -38,10 +52,15 @@ export default function InboxShell({
     status: "open",
     assignee: "",
     instance: "",
+    tag: "",
+    sector: "",
   });
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [contactTags, setContactTags] = useState<ContactTagsMap>(initialContactTags);
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
 
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
@@ -59,6 +78,40 @@ export default function InboxShell({
         setSectors(d.sectors ?? []);
       })
       .catch(() => {});
+  }, []);
+
+  // Tags da organização e respostas rápidas.
+  useEffect(() => {
+    fetch("/api/tags")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setTags(d.tags ?? []))
+      .catch(() => {});
+    fetch("/api/quick-replies")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setQuickReplies(d.quick_replies ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Conversas que chegam depois (tempo real): busca as tags dos contatos novos em lote.
+  useEffect(() => {
+    const missing = Array.from(
+      new Set(conversations.map((c) => c.contact_id).filter((id) => !(id in contactTags)))
+    );
+    if (missing.length === 0) return;
+    // Marca como vazio já, para não repetir a busca; o resultado completa em seguida.
+    setContactTags((prev) => {
+      const next = { ...prev };
+      for (const id of missing) next[id] = next[id] ?? [];
+      return next;
+    });
+    fetch(`/api/contact-tags?contact_ids=${missing.slice(0, 150).join(",")}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setContactTags((prev) => ({ ...prev, ...d.contact_tags })))
+      .catch(() => {});
+  }, [conversations, contactTags]);
+
+  const handleTagsChange = useCallback((contactId: string, ids: string[]) => {
+    setContactTags((prev) => ({ ...prev, [contactId]: ids }));
   }, []);
 
   // Mensagem de aviso some sozinha.
@@ -203,9 +256,11 @@ export default function InboxShell({
         (c) =>
           (filters.status === "all" || c.status === filters.status) &&
           (!isGestor || !filters.assignee || c.assigned_to === filters.assignee) &&
-          (!isGestor || !filters.instance || c.instance_id === filters.instance)
+          (!isGestor || !filters.instance || c.instance_id === filters.instance) &&
+          (!filters.sector || (conversationSector(c, sectors).id ?? "none") === filters.sector) &&
+          (!filters.tag || (contactTags[c.contact_id] ?? []).includes(filters.tag))
       ),
-    [conversations, filters, isGestor]
+    [conversations, filters, isGestor, contactTags, sectors]
   );
 
   const counts = useMemo(() => {
@@ -236,6 +291,21 @@ export default function InboxShell({
     });
   }, [base, filters.tab, search, currentUserId]);
 
+  // Chips de setor: gestor vê todos; os demais só os setores presentes nas conversas acessíveis.
+  const sectorChips = useMemo(() => {
+    const inUse = new Map<string, SectorInfo>();
+    let hasNone = false;
+    for (const c of conversations) {
+      const s = conversationSector(c, sectors);
+      if (s.id) inUse.set(s.id, s);
+      else hasNone = true;
+    }
+    const chips = isGestor ? sectors.map((s) => sectorInfo(s)) : Array.from(inUse.values());
+    chips.sort((a, b) => a.name.localeCompare(b.name));
+    if (hasNone) chips.push(sectorInfo(null));
+    return chips;
+  }, [conversations, sectors, isGestor]);
+
   const instances = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of conversations) {
@@ -263,6 +333,10 @@ export default function InboxShell({
         isGestor={isGestor}
         assignees={assignees}
         instances={instances}
+        tags={tags}
+        contactTags={contactTags}
+        sectors={sectors}
+        sectorChips={sectorChips}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {notice && (
@@ -278,9 +352,22 @@ export default function InboxShell({
           assignees={assignees}
           sectors={sectors}
           onChanged={refreshConversation}
+          quickReplies={quickReplies}
+          currentUserName={currentUserName}
         />
       </div>
-      <ContactPanel conversation={selected} sectors={sectors} onContactSaved={handleContactSaved} />
+      <ContactPanel
+        conversation={selected}
+        sectors={sectors}
+        onContactSaved={handleContactSaved}
+        isGestor={isGestor}
+        tags={tags}
+        contactTagIds={selected ? (contactTags[selected.contact_id] ?? []) : []}
+        onTagsChange={handleTagsChange}
+        onTagCreated={(t) =>
+          setTags((prev) => [...prev, t].sort((a, b) => a.name.localeCompare(b.name)))
+        }
+      />
     </div>
   );
 }
