@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, Loader2, Pencil, Plus, Power, X } from "lucide-react";
 import type { OrgUser, Role } from "@/lib/users";
+import SectorsSection from "./SectorsSection";
 
 type Sector = { id: string; name: string };
 
@@ -57,7 +58,9 @@ export default function UsuariosManager({
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const sectorName = (id: string) => sectors.find((s) => s.id === id)?.name ?? "Setor";
+  // Setores arquivados não aparecem mais nas listas.
+  const sectorNames = (ids: string[]) =>
+    ids.map((id) => sectors.find((s) => s.id === id)?.name).filter(Boolean) as string[];
 
   function open(m: ModalState) {
     setError(null);
@@ -151,7 +154,7 @@ export default function UsuariosManager({
 
               <p className="mt-2 text-xs text-cyber-white/60">
                 Setores:{" "}
-                {u.sector_ids.length > 0 ? u.sector_ids.map(sectorName).join(", ") : "nenhum"}
+                {sectorNames(u.sector_ids).join(", ") || "nenhum"}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -184,6 +187,8 @@ export default function UsuariosManager({
           );
         })}
       </ul>
+
+      <SectorsSection sectors={sectors} />
 
       {modal?.kind === "new" && (
         <UserFormModal
@@ -247,7 +252,9 @@ function UserFormModal({
   const [fullName, setFullName] = useState(user?.full_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [role, setRole] = useState<Role>(user?.role ?? "comercial");
-  const [sectorIds, setSectorIds] = useState<string[]>(user?.sector_ids ?? []);
+  const [sectorIds, setSectorIds] = useState<string[]>(
+    (user?.sector_ids ?? []).filter((id) => sectors.some((s) => s.id === id))
+  );
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [saving, setSaving] = useState(false);
