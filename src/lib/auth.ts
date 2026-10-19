@@ -19,6 +19,22 @@ export async function requireUser() {
   return { supabase, user };
 }
 
+// Usuário logado + perfil ativo (role, org_id).
+export async function requireProfile() {
+  const { supabase, user } = await requireUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, role, org_id, active")
+    .eq("id", user.id)
+    .single();
+  if (!profile || profile.active === false) throw new HttpError("Acesso negado.", 403);
+  return {
+    supabase,
+    user,
+    profile: profile as { full_name: string; role: string; org_id: string; active: boolean },
+  };
+}
+
 export async function requireGestor() {
   const supabase = createClient();
   const {

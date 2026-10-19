@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
-import type { ConversationRow } from "@/lib/inbox-types";
-import ConversationList from "./ConversationList";
+import type { Assignee, ConversationRow, SectorOption } from "@/lib/inbox-types";
+import ConversationList, { type Filters } from "./ConversationList";
 import ChatWindow from "./ChatWindow";
 import ContactPanel from "./ContactPanel";
 
@@ -20,22 +20,53 @@ function sortConversations(list: ConversationRow[]) {
 export default function InboxShell({
   initialConversations,
   currentUserId,
+  currentRole,
 }: {
   initialConversations: ConversationRow[];
   currentUserId: string;
+  currentRole: string;
 }) {
+  const isGestor = currentRole === "gestor";
   const supabase = useMemo(() => createClient(), []);
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(
     initialConversations[0]?.id ?? null
   );
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<Filters>({
+    tab: "all",
+    status: "open",
+    assignee: "",
+    instance: "",
+  });
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [sectors, setSectors] = useState<SectorOption[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
   const readInFlight = useRef(new Set<string>());
+
+  // Pessoas e setores para os seletores (transferência e filtros).
+  useEffect(() => {
+    fetch("/api/assignees")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setAssignees(d.assignees ?? []);
+        setSectors(d.sectors ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Mensagem de aviso some sozinha.
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 8000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   // Zera a contagem na hora (otimista) e confirma no servidor.
   const markRead = useCallback((id: string) => {
@@ -58,11 +89,48 @@ export default function InboxShell({
 
   function handleSelect(id: string) {
     setSelectedId(id);
+    setNotice(null);
     const c = conversationsRef.current.find((x) => x.id === id);
     if (c && c.unread_count > 0) markRead(id);
   }
 
-  // Tempo real: conversas (preview, horário, não lidas, novas conversas).
+  // Relê a conversa com a sessão do usuário (RLS): se sumiu, ele perdeu o acesso.
+  const refreshConversation = useCallback(
+    async (id: string, movedTo?: string) => {
+      const fresh = await fetchConversation(supabase, id);
+      if (!fresh) {
+        setConversations((prev) => prev.filter((c) => c.id !== id));
+        if (selectedRef.current === id) {
+          setSelectedId(null);
+          setNotice(
+            movedTo ? `Conversa transferida para ${movedTo}` : "Você não tem mais acesso a esta conversa."
+          );
+        }
+        return;
+      }
+      setConversations((prev) =>
+        sortConversations(
+          prev.some((c) => c.id === id)
+            ? prev.map((c) => (c.id === id ? { ...fresh, unread_count: c.unread_count } : c))
+            : [...prev, fresh]
+        )
+      );
+    },
+    [supabase]
+  );
+
+  const handleContactSaved = useCallback(
+    (contactId: string, fields: Partial<NonNullable<ConversationRow["contact"]>>) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.contact_id === contactId && c.contact ? { ...c, contact: { ...c.contact, ...fields } } : c
+        )
+      );
+    },
+    []
+  );
+
+  // Tempo real: conversas (preview, horário, não lidas, novas e transferidas para mim).
   useEffect(() => {
     let subscribedBefore = false;
 
@@ -74,9 +142,13 @@ export default function InboxShell({
     const upsertFromEvent = async (row: Partial<ConversationRow> & { id: string }) => {
       const existing = conversationsRef.current.find((c) => c.id === row.id);
 
+      // Conversa nova ou que passou a ficar visível para mim (ex.: transferida): busca tudo.
       if (!existing || (row.assigned_to !== undefined && row.assigned_to !== existing.assigned_to)) {
         const full = await fetchConversation(supabase, row.id);
-        if (!full) return;
+        if (!full) {
+          if (existing) setConversations((prev) => prev.filter((c) => c.id !== row.id));
+          return;
+        }
         setConversations((prev) =>
           sortConversations([...prev.filter((c) => c.id !== full.id), full])
         );
@@ -87,6 +159,7 @@ export default function InboxShell({
       const merged: ConversationRow = {
         ...existing,
         status: row.status ?? existing.status,
+        sector_id: row.sector_id !== undefined ? row.sector_id : existing.sector_id,
         unread_count: row.unread_count ?? existing.unread_count,
         last_message_at: row.last_message_at ?? existing.last_message_at,
         last_message_preview: row.last_message_preview ?? existing.last_message_preview,
@@ -123,16 +196,55 @@ export default function InboxShell({
     };
   }, [supabase, markRead]);
 
+  // Filtros: status + atendente + número definem a base; a aba e a busca refinam.
+  const base = useMemo(
+    () =>
+      conversations.filter(
+        (c) =>
+          (filters.status === "all" || c.status === filters.status) &&
+          (!isGestor || !filters.assignee || c.assigned_to === filters.assignee) &&
+          (!isGestor || !filters.instance || c.instance_id === filters.instance)
+      ),
+    [conversations, filters, isGestor]
+  );
+
+  const counts = useMemo(() => {
+    const mine = base.filter((c) => c.assigned_to === currentUserId);
+    return {
+      all: base.length,
+      mine: mine.length,
+      mineUnread: mine.filter((c) => c.unread_count > 0).length,
+      unassigned: base.filter((c) => !c.assigned_to).length,
+    };
+  }, [base, currentUserId]);
+
   const filtered = useMemo(() => {
+    const byTab = base.filter((c) =>
+      filters.tab === "mine"
+        ? c.assigned_to === currentUserId
+        : filters.tab === "unassigned"
+          ? !c.assigned_to
+          : true
+    );
     const term = search.trim().toLowerCase();
-    if (!term) return conversations;
+    if (!term) return byTab;
     const digits = term.replace(/\D/g, "");
-    return conversations.filter((c) => {
+    return byTab.filter((c) => {
       const name = displayName(c.contact).toLowerCase();
       const phone = c.contact?.phone ?? "";
       return name.includes(term) || (digits.length > 0 && phone.includes(digits));
     });
-  }, [search, conversations]);
+  }, [base, filters.tab, search, currentUserId]);
+
+  const instances = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of conversations) {
+      if (c.instance) map.set(c.instance_id, c.instance.label);
+    }
+    return Array.from(map, ([id, label]) => ({ id, label })).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+  }, [conversations]);
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
@@ -145,9 +257,30 @@ export default function InboxShell({
         onSelect={handleSelect}
         search={search}
         onSearch={setSearch}
+        filters={filters}
+        onFilters={setFilters}
+        counts={counts}
+        isGestor={isGestor}
+        assignees={assignees}
+        instances={instances}
       />
-      <ChatWindow key={selectedId ?? "none"} conversation={selected} currentUserId={currentUserId} />
-      <ContactPanel conversation={selected} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {notice && (
+          <p className="border-b border-cyber-cyan/40 bg-cyber-cyan/10 px-5 py-2 text-sm text-cyber-cyan">
+            {notice}
+          </p>
+        )}
+        <ChatWindow
+          key={selectedId ?? "none"}
+          conversation={selected}
+          currentUserId={currentUserId}
+          isGestor={isGestor}
+          assignees={assignees}
+          sectors={sectors}
+          onChanged={refreshConversation}
+        />
+      </div>
+      <ContactPanel conversation={selected} sectors={sectors} onContactSaved={handleContactSaved} />
     </div>
   );
 }

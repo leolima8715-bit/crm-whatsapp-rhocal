@@ -65,3 +65,23 @@ export const typeLabel: Record<string, string> = {
   contact: "[Contato]",
   other: "[Mensagem]",
 };
+
+// Preview da lista: mapeia o texto que o banco guarda para mídias ("[image]", "[Imagem]", vazio...).
+const PREVIEW_BY_TYPE: Record<string, string> = {
+  image: "📷 Imagem",
+  imagem: "📷 Imagem",
+  video: "🎥 Vídeo",
+  vídeo: "🎥 Vídeo",
+  audio: "🎤 Áudio",
+  áudio: "🎤 Áudio",
+  document: "📄 Documento",
+  documento: "📄 Documento",
+  sticker: "💟 Figurinha",
+  figurinha: "💟 Figurinha",
+};
+
+export function previewLabel(preview: string | null) {
+  if (!preview || !preview.trim()) return "📎 Mídia";
+  const key = preview.trim().replace(/^[\[(]|[\])]$/g, "").toLowerCase();
+  return PREVIEW_BY_TYPE[key] ?? preview;
+}

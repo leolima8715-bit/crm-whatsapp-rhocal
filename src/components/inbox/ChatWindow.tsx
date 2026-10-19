@@ -1,17 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, CheckCheck, Clock, Loader2 } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Clock, Loader2, Mic, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMessages } from "@/lib/inbox-queries";
-import { displayName, formatTime, initials, typeLabel } from "@/lib/format";
-import type { ConversationRow, MessageRow } from "@/lib/inbox-types";
+import { displayName, formatTime, initials } from "@/lib/format";
+import { baseMime, kindFromMime, validateFileClient } from "@/lib/media";
+import type { Assignee, ConversationRow, MessageRow, SectorOption } from "@/lib/inbox-types";
+import AttachmentPanel from "./AttachmentPanel";
+import ConversationActions from "./ConversationActions";
+import MediaContent from "./MediaContent";
+import VoiceRecorder from "./VoiceRecorder";
 
-const statusLabel = {
-  open: "Aberta",
-  waiting: "Aguardando",
-  resolved: "Resolvida",
-} as const;
+const ACCEPT =
+  "image/jpeg,image/png,image/webp,video/mp4,video/3gpp,audio/ogg,audio/mpeg,audio/mp4,audio/webm,audio/aac," +
+  "application/pdf,.doc,.docx,.xls,.xlsx,.pptx,text/plain,text/csv,application/zip";
 
 const isTemp = (m: MessageRow) => m.id.startsWith("tmp-");
 
@@ -23,7 +26,7 @@ function mergeMessage(list: MessageRow[], msg: MessageRow): MessageRow[] {
   }
   if (idx < 0 && msg.direction === "out") {
     idx = list.findIndex(
-      (m) => isTemp(m) && m.status === "pending" && m.body === msg.body
+      (m) => isTemp(m) && m.status === "pending" && m.type === msg.type && m.body === msg.body
     );
   }
   if (idx >= 0) {
@@ -49,12 +52,52 @@ function StatusIcon({ status }: { status: MessageRow["status"] }) {
   }
 }
 
+// PUT com progresso direto no Storage; se falhar, tenta o uploadToSignedUrl do supabase-js.
+function uploadWithProgress(
+  signedUrl: string,
+  file: File,
+  onProgress: (pct: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", signedUrl);
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("upload")));
+    xhr.onerror = () => reject(new Error("upload"));
+    const fd = new FormData();
+    fd.append("cacheControl", "3600");
+    fd.append("", file);
+    xhr.send(fd);
+  });
+}
+
+async function postJson(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, data };
+}
+
 export default function ChatWindow({
   conversation,
   currentUserId,
+  isGestor,
+  assignees,
+  sectors,
+  onChanged,
 }: {
   conversation: ConversationRow | null;
   currentUserId: string;
+  isGestor: boolean;
+  assignees: Assignee[];
+  sectors: SectorOption[];
+  onChanged: (conversationId: string, movedTo?: string) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const conversationId = conversation?.id ?? null;
@@ -65,9 +108,31 @@ export default function ChatWindow({
   const [text, setText] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
 
+  const [pending, setPending] = useState<{ file: File; previewUrl: string | null } | null>(null);
+  const [caption, setCaption] = useState("");
+  const [progress, setProgress] = useState<number | null>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [canRecord, setCanRecord] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const nearBottom = useRef(true);
   const forceScroll = useRef(true);
+
+  useEffect(() => {
+    setCanRecord(typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia);
+  }, []);
+
+  // Libera a URL de prévia ao trocar/cancelar o anexo.
+  useEffect(() => {
+    const url = pending?.previewUrl;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [pending]);
 
   const load = useCallback(async () => {
     if (!conversationId) return;
@@ -150,6 +215,22 @@ export default function ChatWindow({
     nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }
 
+  // Troca a mensagem otimista pela real (ou marca como falha) sem duplicar balões.
+  function settle(tempId: string, optimistic: MessageRow, real: MessageRow | null, failed: boolean) {
+    setMessages((prev) => {
+      const withoutTemp = prev.filter((m) => m.id !== tempId);
+      if (real) {
+        const merged = mergeMessage(withoutTemp, real);
+        // Mantém a prévia local para a mídia não piscar.
+        return merged.map((m) =>
+          m.id === real.id ? { ...m, local_url: optimistic.local_url, local_name: optimistic.local_name } : m
+        );
+      }
+      if (failed) return [...withoutTemp, { ...optimistic, status: "failed" as const }];
+      return withoutTemp;
+    });
+  }
+
   async function send() {
     const value = text.trim();
     if (!value || !conversationId) return;
@@ -166,6 +247,7 @@ export default function ChatWindow({
       type: "text",
       body: value,
       media_mime: null,
+      media_path: null,
       external_id: null,
       status: "pending",
       sent_by: currentUserId,
@@ -177,31 +259,149 @@ export default function ChatWindow({
     nearBottom.current = true;
     setMessages((prev) => [...prev, optimistic]);
 
-    const settle = (real: MessageRow | null, failed: boolean) =>
-      setMessages((prev) => {
-        const withoutTemp = prev.filter((m) => m.id !== tempId);
-        if (real) return mergeMessage(withoutTemp, real);
-        if (failed) return [...withoutTemp, { ...optimistic, status: "failed" as const }];
-        return withoutTemp;
-      });
-
     try {
-      const res = await fetch("/api/messages/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: conversationId, text: value }),
+      const { ok, data } = await postJson("/api/messages/send", {
+        conversation_id: conversationId,
+        text: value,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      if (!ok) {
         setSendError(data?.error ?? "Falha no envio.");
-        settle((data?.message as MessageRow | null) ?? null, true);
+        settle(tempId, optimistic, (data?.message as MessageRow | null) ?? null, true);
         return;
       }
-      settle(data.message as MessageRow, false);
+      settle(tempId, optimistic, data.message as MessageRow, false);
     } catch {
       setSendError("Falha no envio. Verifique sua conexão.");
-      settle(null, true);
+      settle(tempId, optimistic, null, true);
     }
+  }
+
+  // ---------- mídia ----------
+
+  function openPending(file: File) {
+    const invalid = validateFileClient(file);
+    if (invalid) {
+      setMediaError(invalid);
+      return;
+    }
+    const kind = kindFromMime(file.type);
+    setMediaError(null);
+    setCaption("");
+    setProgress(null);
+    setPending({
+      file,
+      previewUrl: kind === "image" || kind === "video" ? URL.createObjectURL(file) : null,
+    });
+  }
+
+  function clearPending() {
+    setPending(null);
+    setCaption("");
+    setProgress(null);
+  }
+
+  // Retorna true se o envio foi concluído.
+  async function sendMedia(file: File, captionText: string): Promise<boolean> {
+    if (!conversationId) return false;
+    const invalid = validateFileClient(file);
+    if (invalid) {
+      setMediaError(invalid);
+      return false;
+    }
+
+    const kind = kindFromMime(file.type);
+    const mime = baseMime(file.type);
+    const tempId = `tmp-${crypto.randomUUID()}`;
+    const optimistic: MessageRow = {
+      id: tempId,
+      conversation_id: conversationId,
+      direction: "out",
+      type: kind,
+      body: captionText.trim() || null,
+      media_mime: mime,
+      media_path: null,
+      external_id: null,
+      status: "pending",
+      sent_by: currentUserId,
+      created_at: new Date().toISOString(),
+      local_url: URL.createObjectURL(file),
+      local_name: file.name,
+    };
+
+    setMediaError(null);
+    setMediaBusy(true);
+    setProgress(0);
+    nearBottom.current = true;
+    setMessages((prev) => [...prev, optimistic]);
+
+    try {
+      const prep = await postJson("/api/media/upload-url", {
+        conversation_id: conversationId,
+        filename: file.name,
+        mime,
+        size: file.size,
+      });
+      if (!prep.ok) throw new Error(prep.data?.error ?? "Não foi possível preparar o envio.");
+
+      try {
+        await uploadWithProgress(prep.data.signedUrl, file, setProgress);
+      } catch {
+        // Plano B: upload do supabase-js (sem progresso detalhado).
+        const { error } = await supabase.storage
+          .from("wa-media")
+          .uploadToSignedUrl(prep.data.path, prep.data.token, file, { contentType: mime });
+        if (error) throw new Error("Falha ao enviar o arquivo. Tente novamente.");
+      }
+      setProgress(100);
+
+      const sent = await postJson("/api/messages/send-media", {
+        conversation_id: conversationId,
+        path: prep.data.path,
+        mime,
+        filename: file.name,
+        caption: captionText.trim(),
+        kind,
+      });
+      if (!sent.ok) {
+        setMediaError(sent.data?.error ?? "Falha no envio.");
+        settle(tempId, optimistic, (sent.data?.message as MessageRow | null) ?? null, true);
+        return false;
+      }
+      settle(tempId, optimistic, sent.data.message as MessageRow, false);
+      return true;
+    } catch (e) {
+      setMediaError((e as Error).message || "Falha no envio. Verifique sua conexão.");
+      settle(tempId, optimistic, null, true);
+      return false;
+    } finally {
+      setMediaBusy(false);
+    }
+  }
+
+  async function sendPending() {
+    if (!pending) return;
+    const ok = await sendMedia(pending.file, caption);
+    if (ok) clearPending();
+  }
+
+  async function sendVoice(file: File) {
+    setRecording(false);
+    await sendMedia(file, "");
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const file = e.clipboardData.files?.[0];
+    if (file) {
+      e.preventDefault();
+      openPending(file);
+    }
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) openPending(file);
   }
 
   if (!conversation) {
@@ -215,7 +415,25 @@ export default function ChatWindow({
   const name = displayName(conversation.contact);
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col">
+    <section
+      className="relative flex min-w-0 flex-1 flex-col"
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          setDragOver(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) setDragOver(false);
+      }}
+      onDrop={onDrop}
+    >
+      {dragOver && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-cyber-cyan bg-cyber-bg/80 text-cyber-cyan">
+          Solte o arquivo para enviar
+        </div>
+      )}
+
       <header className="flex items-center gap-3 border-b border-cyber-line px-5 py-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
           {initials(name)}
@@ -226,9 +444,14 @@ export default function ChatWindow({
             {conversation.contact?.company ?? ""}
           </p>
         </div>
-        <span className="rounded-full border border-cyber-line px-3 py-1 text-xs text-cyber-amber">
-          {statusLabel[conversation.status] ?? conversation.status}
-        </span>
+        <ConversationActions
+          conversation={conversation}
+          currentUserId={currentUserId}
+          isGestor={isGestor}
+          assignees={assignees}
+          sectors={sectors}
+          onChanged={onChanged}
+        />
       </header>
 
       <div
@@ -248,7 +471,12 @@ export default function ChatWindow({
 
         {messages.map((m) => {
           const out = m.direction === "out";
-          const label = m.type !== "text" ? (typeLabel[m.type] ?? "[Mensagem]") : null;
+          const isMedia = ["image", "video", "audio", "document", "sticker"].includes(m.type);
+          const otherLabel: Record<string, string> = {
+            location: "[Localização]",
+            contact: "[Contato]",
+            other: "[Mensagem]",
+          };
           return (
             <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
               <div
@@ -256,8 +484,18 @@ export default function ChatWindow({
                   out ? "bg-cyber-cyan text-cyber-bg" : "bg-cyber-panel text-cyber-white"
                 }`}
               >
-                {label && <p className="font-mono text-xs font-bold opacity-80">{label}</p>}
-                {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                {isMedia ? (
+                  <MediaContent m={m} />
+                ) : (
+                  <>
+                    {m.type !== "text" && (
+                      <p className="font-mono text-xs font-bold opacity-80">
+                        {otherLabel[m.type] ?? "[Mensagem]"}
+                      </p>
+                    )}
+                    {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                  </>
+                )}
                 <p
                   className={`mt-1 flex items-center justify-end gap-1 font-mono text-[10px] ${
                     out ? "text-cyber-bg/70" : "text-cyber-white/40"
@@ -281,30 +519,91 @@ export default function ChatWindow({
       </div>
 
       <footer className="border-t border-cyber-line p-3">
-        {sendError && <p className="mb-2 text-xs text-cyber-orange">{sendError}</p>}
-        <div className="flex items-end gap-2">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={1}
-            maxLength={4096}
-            placeholder="Digite uma mensagem..."
-            className="max-h-32 flex-1 resize-none rounded-lg border border-cyber-line bg-cyber-panel px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
+        {pending && (
+          <AttachmentPanel
+            file={pending.file}
+            previewUrl={pending.previewUrl}
+            caption={caption}
+            onCaption={setCaption}
+            progress={progress}
+            busy={mediaBusy}
+            error={mediaError}
+            onSend={sendPending}
+            onCancel={clearPending}
           />
-          <button
-            onClick={send}
-            disabled={!text.trim()}
-            className="rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Enviar
-          </button>
-        </div>
+        )}
+        {!pending && mediaError && <p className="mb-2 text-xs text-cyber-orange">{mediaError}</p>}
+        {sendError && <p className="mb-2 text-xs text-cyber-orange">{sendError}</p>}
+
+        {recording ? (
+          <VoiceRecorder
+            onSend={sendVoice}
+            onCancel={() => setRecording(false)}
+            onError={(msg) => setMediaError(msg)}
+          />
+        ) : (
+          <div className="flex items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) openPending(f);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={mediaBusy}
+              aria-label="Anexar arquivo"
+              title="Anexar arquivo"
+              className="rounded-lg border border-cyber-line p-2 text-cyber-white/70 transition hover:border-cyber-cyan hover:text-cyber-cyan disabled:opacity-40"
+            >
+              <Paperclip size={18} />
+            </button>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onPaste={onPaste}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              rows={1}
+              maxLength={4096}
+              placeholder="Digite uma mensagem..."
+              className="max-h-32 flex-1 resize-none rounded-lg border border-cyber-line bg-cyber-panel px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
+            />
+            {text.trim() || !canRecord ? (
+              <button
+                onClick={send}
+                disabled={!text.trim()}
+                className="rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Enviar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMediaError(null);
+                  setRecording(true);
+                }}
+                disabled={mediaBusy || !!pending}
+                aria-label="Gravar áudio"
+                title="Gravar áudio"
+                className="rounded-lg bg-cyber-cyan p-2 text-cyber-bg transition hover:opacity-90 disabled:opacity-40"
+              >
+                <Mic size={18} />
+              </button>
+            )}
+          </div>
+        )}
       </footer>
     </section>
   );

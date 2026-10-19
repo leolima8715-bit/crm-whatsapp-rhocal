@@ -1,13 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createHash, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { MEDIA_TYPES, downloadAndStoreMedia } from "@/lib/media-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type Admin = ReturnType<typeof createAdminClient>;
 type Instance = {
   id: string;
+  evolution_instance: string;
   org_id: string;
   owner_id: string | null;
   sector_id: string | null;
@@ -222,9 +225,29 @@ async function handleUpsert(admin: Admin, inst: Instance, item: any) {
   const createdAt = toIso(item.messageTimestamp);
   if (createdAt) row.created_at = createdAt;
 
-  const { error } = await admin.from("messages").insert(row);
-  // 23505 = mensagem já registrada (reenvio da Evolution): ignorar.
-  if (error && error.code !== "23505") throw new DbError("messages insert");
+  const { data: inserted, error } = await admin
+    .from("messages")
+    .insert(row)
+    .select("id")
+    .single();
+  // 23505 = mensagem já registrada (reenvio da Evolution ou envio pelo CRM): sem novo download.
+  if (error) {
+    if (error.code === "23505") return;
+    throw new DbError("messages insert");
+  }
+
+  // Mídia: baixa só quando a mensagem é nova. Falha aqui nunca derruba o webhook.
+  if (inserted && MEDIA_TYPES.includes(type)) {
+    await downloadAndStoreMedia(admin, {
+      instanceName: inst.evolution_instance,
+      orgId: inst.org_id,
+      conversationId,
+      messageId: inserted.id,
+      externalId: key.id,
+      type,
+      fileName: type === "document" ? body : null,
+    });
+  }
 }
 
 function mapAckStatus(raw: unknown): keyof typeof MSG_STATUS_RANK | "failed" | null {
@@ -308,7 +331,7 @@ export async function POST(req: Request) {
   try {
     const { data: inst, error } = await admin
       .from("whatsapp_instances")
-      .select("id, org_id, owner_id, sector_id")
+      .select("id, org_id, evolution_instance, owner_id, sector_id")
       .eq("evolution_instance", instanceName)
       .maybeSingle();
     if (error) throw new DbError("instances select");

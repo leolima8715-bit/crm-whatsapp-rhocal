@@ -72,7 +72,11 @@ export default async function InboxPage() {
       </header>
 
       {profile ? (
-        <InboxShell initialConversations={conversations} currentUserId={user.id} />
+        <InboxShell
+          initialConversations={conversations}
+          currentUserId={user.id}
+          currentRole={profile.role}
+        />
       ) : (
         <p className="p-8 text-cyber-orange">
           Seu usuário ainda não tem perfil. Peça ao gestor para liberar o acesso.

@@ -3,13 +3,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ConversationRow, MessageRow } from "@/lib/inbox-types";
 
 export const CONVERSATION_SELECT =
-  "id, contact_id, instance_id, assigned_to, status, unread_count, last_message_at, last_message_preview, " +
-  "contact:contacts(name, push_name, phone, company), " +
+  "id, contact_id, instance_id, assigned_to, sector_id, status, unread_count, last_message_at, last_message_preview, " +
+  "contact:contacts(name, push_name, phone, company, email, document, notes), " +
   "instance:whatsapp_instances(label, phone), " +
   "assignee:profiles!assigned_to(full_name)";
 
 export const MESSAGE_SELECT =
-  "id, conversation_id, direction, type, body, media_mime, external_id, status, sent_by, created_at";
+  "id, conversation_id, direction, type, body, media_mime, media_path, external_id, status, sent_by, created_at";
 
 type Sb = SupabaseClient<any, any, any>;
 
