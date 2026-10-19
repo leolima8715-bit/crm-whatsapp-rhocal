@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireGestor } from "@/lib/auth";
-import { evolutionFetch } from "@/lib/evolution";
+import { evolutionFetch, webhookSettings } from "@/lib/evolution";
 import { extractQr } from "@/lib/qr";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
         instanceName,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
+        ...(webhookSettings() ? { webhook: webhookSettings() } : {}),
       }),
     });
 

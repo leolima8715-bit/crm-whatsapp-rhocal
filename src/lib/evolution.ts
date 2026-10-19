@@ -50,3 +50,18 @@ export async function evolutionFetch<T = any>(
 
   return data as T;
 }
+
+// Config de webhook enviada à Evolution (criação e /webhook/set). Null se APP_URL não existir.
+export function webhookSettings() {
+  const app = process.env.APP_URL;
+  const secret = process.env.WEBHOOK_SECRET;
+  if (!app || !secret) return null;
+  return {
+    enabled: true,
+    url: `${app.replace(/\/+$/, "")}/api/webhook/evolution`,
+    byEvents: false,
+    base64: false,
+    headers: { "x-webhook-secret": secret },
+    events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+  };
+}
