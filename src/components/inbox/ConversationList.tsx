@@ -1,7 +1,7 @@
 "use client";
 
 import type { Assignee, ContactTagsMap, ConversationRow, SectorOption, Tag } from "@/lib/inbox-types";
-import { conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
+import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import TagChip from "./TagChip";
 import SectorTag from "./SectorTag";
 import { displayName, initials, previewLabel, relativeTime } from "@/lib/format";
@@ -223,53 +223,63 @@ export default function ConversationList({
         {conversations.map((c) => {
           const name = displayName(c.contact);
           const sector = conversationSector(c, sectors);
+          const sc = sectorStyle(sector.color).stripe;
+          const selected = selectedId === c.id;
+          const hasSector = sector.id !== null;
           return (
-            <li key={c.id}>
+            <li key={c.id} className="px-1.5 py-1">
               <button
                 onClick={() => onSelect(c.id)}
-                className={`relative flex w-full items-center gap-3 border-b border-cyber-line px-4 py-3 text-left transition hover:bg-cyber-bg/60 ${
-                  selectedId === c.id ? "bg-cyber-bg" : ""
+                style={
+                  {
+                    "--sec-bg": alpha(sc, selected ? 0.26 : 0.14),
+                    "--sec-hover": alpha(sc, 0.2),
+                    borderColor: selected ? sc : alpha(sc, 0.35),
+                    borderWidth: selected ? 2 : 1,
+                    borderLeftWidth: 6,
+                    borderLeftColor: sc,
+                  } as React.CSSProperties
+                }
+                className={`flex w-full flex-col gap-1.5 rounded-lg border-solid bg-[var(--sec-bg)] px-3 py-2.5 text-left transition ${
+                  selected ? "" : "hover:bg-[var(--sec-hover)]"
                 }`}
               >
-                <span
-                  aria-hidden
-                  style={{ backgroundColor: sectorStyle(sector.color).stripe }}
-                  className="absolute inset-y-0 left-0 w-1"
-                />
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
-                  {initials(name)}
+                <div className="flex w-full items-center justify-between gap-2">
+                  <SectorTag sector={sector} className="max-w-[70%]" />
+                  <span className="shrink-0 text-xs text-cyber-white/60">
+                    {relativeTime(c.last_message_at)}
+                  </span>
                 </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold">{name}</span>
-                    <span className="shrink-0 text-xs text-cyber-white/50">
-                      {relativeTime(c.last_message_at)}
-                    </span>
+                <div className="flex w-full items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
+                    {initials(name)}
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs text-cyber-white/60">
-                      {c.last_message_at || c.last_message_preview
-                        ? previewLabel(c.last_message_preview)
-                        : ""}
-                    </span>
-                    {c.unread_count > 0 && (
-                      <span className="shrink-0 rounded-full bg-cyber-orange px-2 py-0.5 text-xs font-bold text-cyber-bg">
-                        {c.unread_count}
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{name}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs text-cyber-white/70">
+                        {c.last_message_at || c.last_message_preview
+                          ? previewLabel(c.last_message_preview)
+                          : ""}
                       </span>
-                    )}
-                  </div>
-                  <ListTags tags={tags} ids={contactTags[c.contact_id]} />
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <SectorTag sector={sector} className="max-w-[45%]" />
-                    <p className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-wider text-cyber-white/40">
-                      {c.instance?.label ?? "Sem número"} ·{" "}
-                      {c.assignee?.full_name ??
-                        assignees.find((a) => a.id === c.assigned_to)?.full_name ??
-                        (c.assigned_to ? "Responsável" : "Sem responsável")}
-                    </p>
+                      {c.unread_count > 0 && (
+                        <span
+                          style={hasSector ? { backgroundColor: sc, color: "#07090F" } : undefined}
+                          className="shrink-0 rounded-full bg-cyber-orange px-2 py-0.5 text-xs font-bold text-cyber-bg"
+                        >
+                          {c.unread_count}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+                <ListTags tags={tags} ids={contactTags[c.contact_id]} />
+                <p className="w-full truncate font-mono text-[10px] uppercase tracking-wider text-cyber-white/50">
+                  {c.instance?.label ?? "Sem número"} ·{" "}
+                  {c.assignee?.full_name ??
+                    assignees.find((a) => a.id === c.assigned_to)?.full_name ??
+                    (c.assigned_to ? "Responsável" : "Sem responsável")}
+                </p>
               </button>
             </li>
           );

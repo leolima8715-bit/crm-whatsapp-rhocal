@@ -45,7 +45,7 @@ function lighten(hex: string, amount: number) {
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function alpha(hex: string, a: number) {
+export function alpha(hex: string, a: number) {
   const [r, g, b] = rgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }

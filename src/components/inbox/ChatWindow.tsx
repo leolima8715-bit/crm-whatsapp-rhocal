@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCheck, Clock, Loader2, Mic, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMessages } from "@/lib/inbox-queries";
-import { displayName, formatTime, initials } from "@/lib/format";
+import { displayName, formatPhone, formatTime, initials } from "@/lib/format";
 import { baseMime, kindFromMime, validateFileClient } from "@/lib/media";
 import type {
   Assignee,
@@ -13,7 +13,7 @@ import type {
   QuickReply,
   SectorOption,
 } from "@/lib/inbox-types";
-import { conversationSector, sectorStyle } from "@/lib/sector-style";
+import { alpha, conversationSector, sectorStyle } from "@/lib/sector-style";
 import AttachmentPanel from "./AttachmentPanel";
 import SectorTag from "./SectorTag";
 import ConversationActions from "./ConversationActions";
@@ -468,19 +468,26 @@ export default function ChatWindow({
       )}
 
       <header
-        style={{ borderBottom: `2px solid ${sectorStyle(sector.color).stripe}` }}
+        style={{
+          borderTop: `8px solid ${sectorStyle(sector.color).stripe}`,
+          backgroundColor: alpha(sectorStyle(sector.color).stripe, 0.18),
+        }}
         className="flex items-center gap-3 px-5 py-3"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
           {initials(name)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate text-sm font-bold">{name}</h2>
-            <SectorTag sector={sector} />
+            <SectorTag sector={sector} size="lg" className="max-w-[50%]" />
           </div>
-          <p className="truncate text-xs text-cyber-white/60">
-            {conversation.contact?.company ?? ""}
+          <p className="truncate text-xs text-cyber-white/70">
+            {conversation.instance
+              ? `${conversation.instance.label}${
+                  conversation.instance.phone ? ` · ${formatPhone(conversation.instance.phone)}` : ""
+                }`
+              : "Sem número"}
           </p>
         </div>
         <ConversationActions
@@ -557,7 +564,10 @@ export default function ChatWindow({
         })}
       </div>
 
-      <footer className="border-t border-cyber-line p-3">
+      <footer
+        style={{ borderTop: `3px solid ${sectorStyle(sector.color).stripe}` }}
+        className="p-3"
+      >
         {pending && (
           <AttachmentPanel
             file={pending.file}
