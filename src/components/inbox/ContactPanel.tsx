@@ -47,7 +47,7 @@ function ContactForm({
 }) {
   const c = conversation.contact;
   const [owner, setOwner] = useState(conversation.assigned_to ?? "");
-  // Acompanha mudanças feitas fora do formulário (transferir/assumir), para não reverter o responsável.
+  // Acompanha mudanças feitas fora do formulário (transferir), para não reverter o responsável.
   useEffect(() => {
     setOwner(conversation.assigned_to ?? "");
   }, [conversation.assigned_to]);

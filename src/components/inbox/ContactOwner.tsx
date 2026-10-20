@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Send, UserCheck, X } from "lucide-react";
+import { Loader2, Send, X } from "lucide-react";
 import type { Assignee, ConversationRow } from "@/lib/inbox-types";
 
 async function api(url: string, method: string, body?: unknown) {
@@ -32,7 +32,6 @@ export default function ContactOwner({
   onChanged: (conversationId: string, movedTo?: string) => void;
   variant: "header" | "panel";
 }) {
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -42,37 +41,8 @@ export default function ContactOwner({
     conversation.assignee?.full_name ??
     null;
 
-  const unowned = !conversation.assigned_to;
-  const isOwner = conversation.assigned_to === currentUserId;
-  const canClaim = unowned || (isGestor && !isOwner);
-  const canTransfer = isGestor || isOwner;
-
-  async function claim() {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      await api(`/api/conversations/${conversation.id}/claim`, "POST");
-      setNotice("Você assumiu o contato.");
-      onChanged(conversation.id);
-    } catch (e) {
-      setError((e as Error).message);
-      onChanged(conversation.id);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const claimBtn = canClaim && (
-    <button
-      onClick={claim}
-      disabled={busy}
-      className="flex items-center gap-1.5 rounded-lg bg-cyber-cyan px-3 py-1.5 text-xs font-bold text-cyber-bg hover:opacity-90 disabled:opacity-50"
-    >
-      {busy ? <Loader2 size={12} className="animate-spin" /> : <UserCheck size={12} />}
-      Assumir contato
-    </button>
-  );
+  // Gestor transfere qualquer contato (inclusive sem responsável); os demais só os seus.
+  const canTransfer = isGestor || conversation.assigned_to === currentUserId;
 
   const transferBtn = canTransfer && (
     <button
@@ -108,7 +78,6 @@ export default function ContactOwner({
           <p className="text-right text-xs text-cyber-white/70">
             Responsável: <span className="font-semibold text-cyber-white">{ownerName ?? "Sem responsável"}</span>
           </p>
-          {claimBtn}
           {transferBtn}
         </div>
         {error && <p className="text-xs text-cyber-orange">{error}</p>}
@@ -125,9 +94,8 @@ export default function ContactOwner({
         {ownerName ?? (conversation.assigned_to ? "—" : "Sem responsável")}
       </dd>
       <p className="mt-1 text-xs text-cyber-white/50">Vale para todas as conversas deste contato.</p>
-      {(claimBtn || transferBtn) && (
+      {transferBtn && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {claimBtn}
           {transferBtn}
         </div>
       )}
