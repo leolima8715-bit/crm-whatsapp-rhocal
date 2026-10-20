@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireGestor } from "@/lib/auth";
 import { evolutionFetch, webhookSettings } from "@/lib/evolution";
+import { assertActiveSector } from "@/lib/sectors";
 import { extractQr } from "@/lib/qr";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
     if (!label) throw new HttpError("Informe o nome do número.", 400);
 
     const admin = createAdminClient();
+    const sectorId = await assertActiveSector(admin, orgId, body?.sector_id);
     const base = slugify(label);
 
     let instanceName = "";
@@ -65,6 +67,7 @@ export async function POST(req: Request) {
       .insert({
         org_id: orgId,
         label,
+        sector_id: sectorId,
         evolution_instance: instanceName,
         status: "connecting",
       })

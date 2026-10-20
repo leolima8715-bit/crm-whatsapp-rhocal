@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, QrCode, Unplug, Archive, X, Loader2 } from "lucide-react";
+import { Plus, QrCode, Unplug, Archive, X, Loader2, Tag } from "lucide-react";
+import SectorTag from "@/components/inbox/SectorTag";
+import { sectorInfo, sectorStyle } from "@/lib/sector-style";
 
 type Status = "disconnected" | "connecting" | "connected";
-type Instance = { id: string; label: string; phone: string | null; status: Status };
+type Instance = {
+  id: string;
+  label: string;
+  phone: string | null;
+  status: Status;
+  sector_id: string | null;
+};
+type Sector = { id: string; name: string; color: string | null };
 
 const statusUi: Record<Status, { text: string; cls: string }> = {
   connected: { text: "Conectado", cls: "border-cyber-cyan/50 text-cyber-cyan" },
@@ -34,11 +43,19 @@ async function api(url: string, init?: RequestInit) {
   return data;
 }
 
-export default function NumerosManager({ instances }: { instances: Instance[] }) {
+export default function NumerosManager({
+  instances,
+  sectors,
+}: {
+  instances: Instance[];
+  sectors: Sector[];
+}) {
   const router = useRouter();
 
   const [addOpen, setAddOpen] = useState(false);
   const [label, setLabel] = useState("");
+  const [sectorId, setSectorId] = useState("");
+  const [editSectorId, setEditSectorId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [qrFor, setQrFor] = useState<{ id: string; label: string } | null>(null);
@@ -104,20 +121,21 @@ export default function NumerosManager({ instances }: { instances: Instance[] })
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!label.trim()) return;
+    if (!label.trim() || !sectorId) return;
     setCreating(true);
     setError(null);
     try {
       const data = await api("/api/instances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim() }),
+        body: JSON.stringify({ label: label.trim(), sector_id: sectorId }),
       });
       setQrFor({ id: data.id, label: label.trim() });
       setQr(data.qr ?? null);
       setPairing(null);
       setAddOpen(false);
       setLabel("");
+      setSectorId("");
       router.refresh();
       if (!data.qr) fetchQr(data.id);
     } catch (err) {
@@ -133,6 +151,25 @@ export default function NumerosManager({ instances }: { instances: Instance[] })
     setPairing(null);
     setQrFor({ id: inst.id, label: inst.label });
     fetchQr(inst.id);
+  }
+
+  async function changeSector(inst: Instance, newSectorId: string) {
+    if (!newSectorId) return;
+    setBusyId(inst.id);
+    setError(null);
+    try {
+      await api(`/api/instances/${inst.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sector_id: newSectorId }),
+      });
+      setEditSectorId(null);
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function action(inst: Instance, kind: "logout" | "archive") {
@@ -186,8 +223,14 @@ export default function NumerosManager({ instances }: { instances: Instance[] })
           {instances.map((inst) => {
             const ui = statusUi[inst.status];
             const busy = busyId === inst.id;
+            const sector = sectors.find((x) => x.id === inst.sector_id);
+            const info = sectorInfo(sector);
             return (
-              <li key={inst.id} className="rounded-lg border border-cyber-line bg-cyber-panel p-4">
+              <li
+                key={inst.id}
+                style={sector ? { borderLeft: `6px solid ${sectorStyle(sector.color).stripe}` } : undefined}
+                className="rounded-lg border border-cyber-line bg-cyber-panel p-4"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-bold">{inst.label}</p>
@@ -202,7 +245,55 @@ export default function NumerosManager({ instances }: { instances: Instance[] })
                   </span>
                 </div>
 
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <SectorTag sector={info} />
+                  {!sector && (
+                    <span className="text-xs font-bold text-[#FEB23D]">Defina o setor deste número</span>
+                  )}
+                </div>
+
+                {editSectorId === inst.id && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      autoFocus
+                      disabled={busy}
+                      value={sector ? sector.id : ""}
+                      onChange={(e) => changeSector(inst, e.target.value)}
+                      aria-label="Setor do número"
+                      className="min-w-0 flex-1 rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-sm outline-none focus:border-cyber-cyan"
+                    >
+                      <option value="" disabled>
+                        Selecione o setor
+                      </option>
+                      {sectors.map((x) => (
+                        <option key={x.id} value={x.id} style={{ color: sectorStyle(x.color).text }}>
+                          ● {x.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setEditSectorId(null)}
+                      aria-label="Cancelar"
+                      className="text-cyber-white/60 hover:text-cyber-orange"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+
                 <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    disabled={busy}
+                    onClick={() => setEditSectorId(inst.id)}
+                    style={
+                      !sector
+                        ? { borderColor: "#FEB23D", color: "#FEB23D", backgroundColor: "rgba(254,178,61,0.12)" }
+                        : undefined
+                    }
+                    className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan disabled:opacity-50"
+                  >
+                    <Tag size={14} /> Alterar setor
+                  </button>
                   {inst.status !== "connected" ? (
                     <button
                       disabled={busy}
@@ -249,10 +340,31 @@ export default function NumerosManager({ instances }: { instances: Instance[] })
                 className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 outline-none focus:border-cyber-cyan"
               />
             </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-cyber-white/70">Setor *</span>
+              <select
+                required
+                value={sectorId}
+                onChange={(e) => setSectorId(e.target.value)}
+                className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 outline-none focus:border-cyber-cyan"
+              >
+                <option value="">Selecione o setor</option>
+                {sectors.map((x) => (
+                  <option key={x.id} value={x.id} style={{ color: sectorStyle(x.color).text }}>
+                    ● {x.name}
+                  </option>
+                ))}
+              </select>
+              {sectors.length === 0 && (
+                <span className="mt-1 block text-xs text-[#FEB23D]">
+                  Cadastre um setor em Usuários antes de adicionar números.
+                </span>
+              )}
+            </label>
             {error && <p className="text-sm text-cyber-orange">{error}</p>}
             <button
               type="submit"
-              disabled={creating || !label.trim()}
+              disabled={creating || !label.trim() || !sectorId}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:opacity-50"
             >
               {creating ? (

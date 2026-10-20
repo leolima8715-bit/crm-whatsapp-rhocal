@@ -24,10 +24,17 @@ export default async function NumerosPage() {
 
   const { data: instances } = await supabase
     .from("whatsapp_instances")
-    .select("id, label, phone, status")
+    .select("id, label, phone, status, sector_id")
     .eq("org_id", profile.org_id)
     .eq("archived", false)
     .order("created_at", { ascending: true });
+
+  const { data: sectors } = await supabase
+    .from("sectors")
+    .select("id, name, color")
+    .eq("org_id", profile.org_id)
+    .eq("archived", false)
+    .order("name", { ascending: true });
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -56,8 +63,10 @@ export default async function NumerosPage() {
             label: string;
             phone: string | null;
             status: "disconnected" | "connecting" | "connected";
+            sector_id: string | null;
           }[]
         }
+        sectors={(sectors ?? []) as { id: string; name: string; color: string | null }[]}
       />
     </main>
   );

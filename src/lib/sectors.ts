@@ -36,6 +36,21 @@ export async function assertSectorNameFree(
   }
 }
 
+// Setor obrigatório, ativo e da mesma organização do usuário.
+export async function assertActiveSector(admin: Admin, orgId: string, sectorId: unknown): Promise<string> {
+  if (typeof sectorId !== "string" || !sectorId) throw new HttpError("Selecione o setor do número.", 400);
+  const { data, error } = await admin
+    .from("sectors")
+    .select("id")
+    .eq("id", sectorId)
+    .eq("org_id", orgId)
+    .eq("archived", false)
+    .maybeSingle();
+  if (error) throw new HttpError("Erro ao verificar o setor.", 500);
+  if (!data) throw new HttpError("Setor inválido.", 400);
+  return data.id;
+}
+
 export function validateSectorColor(v: unknown): string {
   if (typeof v !== "string" || !HEX_COLOR_RE.test(v)) {
     throw new HttpError("Cor inválida. Use o formato #RRGGBB.", 400);
