@@ -17,6 +17,7 @@ import { conversationSector, sectorInfo, type SectorInfo } from "@/lib/sector-st
 import ConversationList, { type Filters } from "./ConversationList";
 import ChatWindow from "./ChatWindow";
 import ContactPanel from "./ContactPanel";
+import NewConversationModal from "./NewConversationModal";
 
 function sortConversations(list: ConversationRow[]) {
   return [...list].sort((a, b) => {
@@ -62,6 +63,8 @@ export default function InboxShell({
   const [tags, setTags] = useState<Tag[]>([]);
   const [contactTags, setContactTags] = useState<ContactTagsMap>(initialContactTags);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [newOpen, setNewOpen] = useState(false);
+  const [draft, setDraft] = useState<{ conversationId: string; text: string } | null>(null);
 
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
@@ -172,6 +175,18 @@ export default function InboxShell({
     },
     [supabase]
   );
+
+  // Nova conversa criada (ou já existente): mostra na lista e abre. Se já existia, nada foi
+  // enviado e o texto digitado vai para a caixa de mensagem.
+  async function handleNewConversation(id: string, existingText?: string) {
+    setNewOpen(false);
+    await refreshConversation(id);
+    setFilters({ tab: "all", status: "all", assignee: "", instance: "", tag: "", sector: "" });
+    setSearch("");
+    setDraft(existingText ? { conversationId: id, text: existingText } : null);
+    setSelectedId(id);
+    setNotice(existingText ? "Esta conversa já existia. Sua mensagem está pronta para enviar." : null);
+  }
 
   const handleContactSaved = useCallback(
     (contactId: string, fields: Partial<NonNullable<ConversationRow["contact"]>>) => {
@@ -338,7 +353,11 @@ export default function InboxShell({
         contactTags={contactTags}
         sectors={sectors}
         sectorChips={sectorChips}
+        onNewConversation={() => setNewOpen(true)}
       />
+      {newOpen && (
+        <NewConversationModal onClose={() => setNewOpen(false)} onOpened={handleNewConversation} />
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         {notice && (
           <p className="border-b border-cyber-cyan/40 bg-cyber-cyan/10 px-5 py-2 text-sm text-cyber-cyan">
@@ -346,7 +365,7 @@ export default function InboxShell({
           </p>
         )}
         <ChatWindow
-          key={selectedId ?? "none"}
+          key={`${selectedId ?? "none"}:${draft && draft.conversationId === selectedId ? draft.text : ""}`}
           conversation={selected}
           currentUserId={currentUserId}
           isGestor={isGestor}
@@ -355,6 +374,7 @@ export default function InboxShell({
           onChanged={refreshConversation}
           quickReplies={quickReplies}
           currentUserName={currentUserName}
+          initialText={draft && draft.conversationId === selectedId ? draft.text : ""}
         />
       </div>
       <ContactPanel

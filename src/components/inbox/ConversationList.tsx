@@ -2,6 +2,7 @@
 
 import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type Tag } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
+import { Plus } from "lucide-react";
 import TagChip from "./TagChip";
 import SectorTag from "./SectorTag";
 import { formatContactLabel, initials, previewLabel, relativeTime } from "@/lib/format";
@@ -35,6 +36,7 @@ type Props = {
   contactTags: ContactTagsMap;
   sectors: SectorOption[];
   sectorChips: SectorInfo[];
+  onNewConversation: () => void;
 };
 
 function ListTags({ tags, ids }: { tags: Tag[]; ids: string[] | undefined }) {
@@ -71,6 +73,7 @@ export default function ConversationList({
   contactTags,
   sectors,
   sectorChips,
+  onNewConversation,
 }: Props) {
   const tabs: { id: Tab; label: string; count: number; extra?: number }[] = [
     { id: "all", label: "Todas", count: counts.all },
@@ -81,6 +84,12 @@ export default function ConversationList({
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-cyber-line bg-cyber-panel">
       <div className="space-y-2 border-b border-cyber-line p-3">
+        <button
+          onClick={onNewConversation}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-3 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90"
+        >
+          <Plus size={16} /> Nova conversa
+        </button>
         <input
           type="search"
           placeholder="Buscar por nome ou telefone..."

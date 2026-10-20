@@ -102,7 +102,9 @@ export default function ChatWindow({
   onChanged,
   quickReplies,
   currentUserName,
+  initialText = "",
 }: {
+  initialText?: string;
   conversation: ConversationRow | null;
   currentUserId: string;
   isGestor: boolean;
@@ -118,7 +120,7 @@ export default function ChatWindow({
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [sendError, setSendError] = useState<string | null>(null);
 
   const [pending, setPending] = useState<{ file: File; previewUrl: string | null } | null>(null);
