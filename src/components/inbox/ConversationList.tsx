@@ -1,6 +1,6 @@
 "use client";
 
-import type { Assignee, ContactTagsMap, ConversationRow, SectorOption, Tag } from "@/lib/inbox-types";
+import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type Tag } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import TagChip from "./TagChip";
 import SectorTag from "./SectorTag";
@@ -222,7 +222,7 @@ export default function ConversationList({
 
         {conversations.map((c) => {
           const sector = conversationSector(c, sectors);
-          const label = formatContactLabel(c.contact, sector);
+          const label = formatContactLabel(c.contact, sector, ownerNameOf(c, assignees));
           const sc = sectorStyle(sector.color).stripe;
           const selected = selectedId === c.id;
           const hasSector = sector.id !== null;

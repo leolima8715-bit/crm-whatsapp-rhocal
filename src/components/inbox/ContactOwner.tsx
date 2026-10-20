@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, Send, X } from "lucide-react";
-import type { Assignee, ConversationRow } from "@/lib/inbox-types";
+import { ownerIdOf, type Assignee, type ConversationRow } from "@/lib/inbox-types";
 
 async function api(url: string, method: string, body?: unknown) {
   const res = await fetch(url, {
@@ -37,7 +37,7 @@ export default function ContactOwner({
   const [transferOpen, setTransferOpen] = useState(false);
 
   // Gestor transfere qualquer contato (inclusive sem responsável); os demais só os seus.
-  const canTransfer = isGestor || conversation.assigned_to === currentUserId;
+  const canTransfer = isGestor || ownerIdOf(conversation) === currentUserId;
 
   const transferBtn = canTransfer && (
     <button
@@ -120,7 +120,7 @@ function TransferModal({
     return assignees.filter((a) => !q || a.full_name.toLowerCase().includes(q));
   }, [assignees, query]);
 
-  const nothingChosen = person === "keep" || person === (conversation.assigned_to ?? "none");
+  const nothingChosen = person === "keep" || person === (ownerIdOf(conversation) ?? "none");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

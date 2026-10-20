@@ -12,6 +12,7 @@ export type ConversationRow = {
   last_message_at: string | null;
   last_message_preview: string | null;
   contact: {
+    owner_id: string | null;
     name: string | null;
     push_name: string | null;
     phone: string;
@@ -45,6 +46,23 @@ export type MessageRow = {
   local_url?: string | null;
   local_name?: string | null;
 };
+
+// Responsável = dono do CONTATO (contacts.owner_id); assigned_to é só o espelho.
+export function ownerIdOf(c: Pick<ConversationRow, "contact" | "assigned_to">): string | null {
+  return c.contact && c.contact.owner_id !== undefined ? c.contact.owner_id : c.assigned_to;
+}
+
+export function ownerNameOf(
+  c: Pick<ConversationRow, "contact" | "assigned_to" | "assignee">,
+  assignees: { id: string; full_name: string }[]
+): string | null {
+  const id = ownerIdOf(c);
+  if (!id) return null;
+  return (
+    assignees.find((a) => a.id === id)?.full_name ??
+    (id === c.assigned_to ? (c.assignee?.full_name ?? null) : null)
+  );
+}
 
 export type Assignee = { id: string; full_name: string; role: string; sector_ids: string[] };
 export type SectorOption = { id: string; name: string; color?: string | null };

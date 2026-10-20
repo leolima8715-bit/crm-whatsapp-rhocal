@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
-import type {
-  Assignee,
-  ContactTagsMap,
-  ConversationRow,
-  QuickReply,
-  SectorOption,
-  Tag,
+import {
+  ownerIdOf,
+  type Assignee,
+  type ContactTagsMap,
+  type ConversationRow,
+  type QuickReply,
+  type SectorOption,
+  type Tag,
 } from "@/lib/inbox-types";
 import { conversationSector, sectorInfo, type SectorInfo } from "@/lib/sector-style";
 import ConversationList, { type Filters } from "./ConversationList";
@@ -255,7 +256,7 @@ export default function InboxShell({
       conversations.filter(
         (c) =>
           (filters.status === "all" || c.status === filters.status) &&
-          (!isGestor || !filters.assignee || c.assigned_to === filters.assignee) &&
+          (!isGestor || !filters.assignee || ownerIdOf(c) === filters.assignee) &&
           (!isGestor || !filters.instance || c.instance_id === filters.instance) &&
           (!filters.sector || (conversationSector(c, sectors).id ?? "none") === filters.sector) &&
           (!filters.tag || (contactTags[c.contact_id] ?? []).includes(filters.tag))
@@ -264,21 +265,21 @@ export default function InboxShell({
   );
 
   const counts = useMemo(() => {
-    const mine = base.filter((c) => c.assigned_to === currentUserId);
+    const mine = base.filter((c) => ownerIdOf(c) === currentUserId);
     return {
       all: base.length,
       mine: mine.length,
       mineUnread: mine.filter((c) => c.unread_count > 0).length,
-      unassigned: base.filter((c) => !c.assigned_to).length,
+      unassigned: base.filter((c) => !ownerIdOf(c)).length,
     };
   }, [base, currentUserId]);
 
   const filtered = useMemo(() => {
     const byTab = base.filter((c) =>
       filters.tab === "mine"
-        ? c.assigned_to === currentUserId
+        ? ownerIdOf(c) === currentUserId
         : filters.tab === "unassigned"
-          ? !c.assigned_to
+          ? !ownerIdOf(c)
           : true
     );
     const term = search.trim().toLowerCase();

@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { Assignee, ConversationRow, SectorOption, Tag, TransferEntry } from "@/lib/inbox-types";
+import {
+  ownerIdOf,
+  ownerNameOf,
+  type Assignee,
+  type ConversationRow,
+  type SectorOption,
+  type Tag,
+  type TransferEntry,
+} from "@/lib/inbox-types";
 import { conversationSector } from "@/lib/sector-style";
 import ContactOwner from "./ContactOwner";
 import { DealSection, NotesSection, TagsSection } from "./ContactExtras";
@@ -47,11 +55,11 @@ function ContactForm({
   onOwnerChanged: (conversationId: string) => void;
 }) {
   const c = conversation.contact;
-  const [owner, setOwner] = useState(conversation.assigned_to ?? "");
+  const [owner, setOwner] = useState(ownerIdOf(conversation) ?? "");
   // Acompanha mudanças feitas fora do formulário (transferir), para não reverter o responsável.
   useEffect(() => {
-    setOwner(conversation.assigned_to ?? "");
-  }, [conversation.assigned_to]);
+    setOwner(ownerIdOf(conversation) ?? "");
+  }, [ownerIdOf(conversation)]);
   const [form, setForm] = useState({
     name: c?.name ?? "",
     company: c?.company ?? "",
@@ -78,7 +86,7 @@ function ContactForm({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          isGestor && owner !== (conversation.assigned_to ?? "")
+          isGestor && owner !== (ownerIdOf(conversation) ?? "")
             ? { ...form, owner_id: owner || null }
             : form
         ),
@@ -86,7 +94,7 @@ function ContactForm({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Erro inesperado. Tente novamente.");
       onSaved(conversation.contact_id, data.contact);
-      if (isGestor && owner !== (conversation.assigned_to ?? "")) onOwnerChanged(conversation.id);
+      if (isGestor && owner !== (ownerIdOf(conversation) ?? "")) onOwnerChanged(conversation.id);
       setSaved(true);
     } catch (err) {
       setError((err as Error).message);
@@ -276,7 +284,11 @@ export default function ContactPanel({
       ? `${conversation.instance.label} · ${formatPhone(conversation.instance.phone)}`
       : conversation.instance.label
     : "—";
-  const label = formatContactLabel(conversation.contact, conversationSector(conversation, sectors));
+  const label = formatContactLabel(
+    conversation.contact,
+    conversationSector(conversation, sectors),
+    ownerNameOf(conversation, assignees)
+  );
   const sectorName = conversationSector(conversation, sectors).name;
 
   return (

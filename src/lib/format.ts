@@ -86,10 +86,13 @@ export function previewLabel(preview: string | null) {
   return PREVIEW_BY_TYPE[key] ?? preview;
 }
 
-// "ANA-COMERCIAL": nome do contato + setor do número, em caixa alta. Sem setor: "ANA-SEM SETOR".
+// "ANA-COMERCIAL": primeiro nome do responsável (ou, sem responsável, o nome do contato) + setor
+// do número, em caixa alta. Sem setor: "ANA-SEM SETOR".
 export function formatContactLabel(
   contact: { name: string | null; push_name: string | null; phone: string } | null,
-  sector: { name: string } | null | undefined
+  sector: { name: string } | null | undefined,
+  ownerName?: string | null
 ) {
-  return `${displayName(contact)}-${sector?.name ?? "Sem setor"}`.toLocaleUpperCase("pt-BR");
+  const who = ownerName?.trim().split(/\s+/)[0] || displayName(contact);
+  return `${who}-${sector?.name ?? "Sem setor"}`.toLocaleUpperCase("pt-BR");
 }

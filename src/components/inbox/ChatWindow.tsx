@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchMessages } from "@/lib/inbox-queries";
 import { displayName, formatContactLabel, formatPhone, formatTime, initials } from "@/lib/format";
 import { baseMime, kindFromMime, validateFileClient } from "@/lib/media";
-import type {
-  Assignee,
-  ConversationRow,
-  MessageRow,
-  QuickReply,
-  SectorOption,
+import {
+  ownerNameOf,
+  type Assignee,
+  type ConversationRow,
+  type MessageRow,
+  type QuickReply,
+  type SectorOption,
 } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle } from "@/lib/sector-style";
 import AttachmentPanel from "./AttachmentPanel";
@@ -446,7 +447,7 @@ export default function ChatWindow({
 
   const name = displayName(conversation.contact);
   const sector = conversationSector(conversation, sectors);
-  const label = formatContactLabel(conversation.contact, sector);
+  const label = formatContactLabel(conversation.contact, sector, ownerNameOf(conversation, assignees));
 
   return (
     <section
