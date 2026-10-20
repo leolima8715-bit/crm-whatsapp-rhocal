@@ -2,7 +2,7 @@
 
 import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type Tag } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
-import { Plus } from "lucide-react";
+import ConversationFilters from "./ConversationFilters";
 import TagChip from "./TagChip";
 import SectorTag from "./SectorTag";
 import { formatContactLabel, initials, previewLabel, relativeTime } from "@/lib/format";
@@ -53,9 +53,6 @@ function ListTags({ tags, ids }: { tags: Tag[]; ids: string[] | undefined }) {
   );
 }
 
-const selectCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-xs outline-none focus:border-cyber-cyan";
-
 export default function ConversationList({
   conversations,
   totalCount,
@@ -83,143 +80,21 @@ export default function ConversationList({
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-cyber-line bg-cyber-panel">
-      <div className="space-y-2 border-b border-cyber-line p-3">
-        <button
-          onClick={onNewConversation}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-3 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90"
-        >
-          <Plus size={16} /> Nova conversa
-        </button>
-        <input
-          type="search"
-          placeholder="Buscar por nome ou telefone..."
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-          className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
-        />
+      <ConversationFilters
+        search={search}
+        onSearch={onSearch}
+        filters={filters}
+        onFilters={onFilters}
+        counts={counts}
+        isGestor={isGestor}
+        assignees={assignees}
+        instances={instances}
+        tags={tags}
+        sectorChips={sectorChips}
+        onNewConversation={onNewConversation}
+      />
 
-        {sectorChips.length > 0 && (
-          <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por setor">
-            <button
-              onClick={() => onFilters({ ...filters, sector: "" })}
-              aria-pressed={filters.sector === ""}
-              className={`rounded-full border px-2.5 py-1 text-[11px] leading-tight transition ${
-                filters.sector === ""
-                  ? "border-cyber-cyan bg-cyber-cyan/10 text-cyber-cyan"
-                  : "border-cyber-line text-cyber-white/70 hover:border-cyber-cyan/50"
-              }`}
-            >
-              Todos
-            </button>
-            {sectorChips.map((s) => {
-              const key = s.id ?? "none";
-              const active = filters.sector === key;
-              const st = sectorStyle(s.color);
-              return (
-                <button
-                  key={key}
-                  onClick={() => onFilters({ ...filters, sector: active ? "" : key })}
-                  aria-pressed={active}
-                  style={active ? { borderColor: st.stripe, backgroundColor: st.bg } : undefined}
-                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] leading-tight transition ${
-                    active ? "text-cyber-white" : "border-cyber-line text-cyber-white/70 hover:border-cyber-white/30"
-                  }`}
-                >
-                  <span
-                    aria-hidden
-                    style={{ backgroundColor: st.stripe }}
-                    className="h-2 w-2 shrink-0 rounded-full border border-cyber-white/30"
-                  />
-                  <span className="truncate">{s.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="flex gap-1">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => onFilters({ ...filters, tab: t.id })}
-              className={`flex-1 rounded-lg border px-1.5 py-1.5 text-[11px] leading-tight transition ${
-                filters.tab === t.id
-                  ? "border-cyber-cyan bg-cyber-cyan/10 text-cyber-cyan"
-                  : "border-cyber-line text-cyber-white/70 hover:border-cyber-cyan/50"
-              }`}
-            >
-              {t.label}
-              <span className="ml-1 font-mono">{t.count}</span>
-              {t.extra ? (
-                <span className="ml-1 rounded-full bg-cyber-orange px-1.5 font-bold text-cyber-bg">
-                  {t.extra}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
-        <select
-          value={filters.status}
-          onChange={(e) => onFilters({ ...filters, status: e.target.value as StatusFilter })}
-          aria-label="Filtrar por status"
-          className={selectCls}
-        >
-          <option value="open">Abertas</option>
-          <option value="waiting">Aguardando</option>
-          <option value="resolved">Resolvidas</option>
-          <option value="all">Todas</option>
-        </select>
-
-        {tags.length > 0 && (
-          <select
-            value={filters.tag}
-            onChange={(e) => onFilters({ ...filters, tag: e.target.value })}
-            aria-label="Filtrar por tag"
-            className={selectCls}
-          >
-            <option value="">Tag: todas</option>
-            {tags.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {isGestor && (
-          <div className="flex gap-2">
-            <select
-              value={filters.assignee}
-              onChange={(e) => onFilters({ ...filters, assignee: e.target.value })}
-              aria-label="Filtrar por atendente"
-              className={selectCls}
-            >
-              <option value="">Atendente: todos</option>
-              {assignees.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.full_name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filters.instance}
-              onChange={(e) => onFilters({ ...filters, instance: e.target.value })}
-              aria-label="Filtrar por número"
-              className={selectCls}
-            >
-              <option value="">Número: todos</option>
-              {instances.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <ul className="flex-1 overflow-y-auto">
+      <ul className="min-h-0 flex-1 overflow-y-auto">
         {totalCount === 0 && (
           <li className="p-4 text-sm text-cyber-white/50">
             Nenhuma conversa ainda. Quando chegar uma mensagem, ela aparece aqui.
@@ -236,7 +111,7 @@ export default function ConversationList({
           const selected = selectedId === c.id;
           const hasSector = sector.id !== null;
           return (
-            <li key={c.id} className="px-1.5 py-1">
+            <li key={c.id} className="px-1.5 py-0.5">
               <button
                 onClick={() => onSelect(c.id)}
                 style={
@@ -249,7 +124,7 @@ export default function ConversationList({
                     borderLeftColor: sc,
                   } as React.CSSProperties
                 }
-                className={`flex w-full flex-col gap-1.5 rounded-lg border-solid bg-[var(--sec-bg)] px-3 py-2.5 text-left transition ${
+                className={`flex w-full flex-col gap-1 rounded-lg border-solid bg-[var(--sec-bg)] px-3 py-2 text-left transition ${
                   selected ? "" : "hover:bg-[var(--sec-hover)]"
                 }`}
               >
