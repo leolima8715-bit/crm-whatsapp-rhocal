@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { Assignee, ConversationRow, SectorOption, Tag, TransferEntry } from "@/lib/inbox-types";
+import { conversationSector } from "@/lib/sector-style";
 import ContactOwner from "./ContactOwner";
 import { DealSection, NotesSection, TagsSection } from "./ContactExtras";
-import { displayName, formatPhone, initials } from "@/lib/format";
+import { displayName, formatContactLabel, formatPhone, initials } from "@/lib/format";
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
 
@@ -275,7 +276,8 @@ export default function ContactPanel({
       ? `${conversation.instance.label} · ${formatPhone(conversation.instance.phone)}`
       : conversation.instance.label
     : "—";
-  const sectorName = sectors.find((s) => s.id === conversation.sector_id)?.name ?? "—";
+  const label = formatContactLabel(conversation.contact, conversationSector(conversation, sectors));
+  const sectorName = conversationSector(conversation, sectors).name;
 
   return (
     <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-cyber-line bg-cyber-panel p-5 xl:flex">
@@ -283,7 +285,9 @@ export default function ContactPanel({
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-xl font-bold text-cyber-cyan">
           {initials(name)}
         </div>
-        <h3 className="mt-3 text-base font-bold">{name}</h3>
+        <h3 title={label} className="mt-3 w-full truncate text-base font-bold">
+          {label}
+        </h3>
       </div>
 
       <dl className="mt-5 space-y-3">

@@ -4,7 +4,7 @@ import type { Assignee, ContactTagsMap, ConversationRow, SectorOption, Tag } fro
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import TagChip from "./TagChip";
 import SectorTag from "./SectorTag";
-import { displayName, initials, previewLabel, relativeTime } from "@/lib/format";
+import { formatContactLabel, initials, previewLabel, relativeTime } from "@/lib/format";
 
 export type Tab = "all" | "mine" | "unassigned";
 export type StatusFilter = "open" | "waiting" | "resolved" | "all";
@@ -221,8 +221,8 @@ export default function ConversationList({
         )}
 
         {conversations.map((c) => {
-          const name = displayName(c.contact);
           const sector = conversationSector(c, sectors);
+          const label = formatContactLabel(c.contact, sector);
           const sc = sectorStyle(sector.color).stripe;
           const selected = selectedId === c.id;
           const hasSector = sector.id !== null;
@@ -252,10 +252,16 @@ export default function ConversationList({
                 </div>
                 <div className="flex w-full items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
-                    {initials(name)}
+                    {initials(label)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{name}</span>
+                    <span
+                      title={label}
+                      style={{ color: hasSector ? sectorStyle(sector.color).text : undefined }}
+                      className="block truncate text-sm font-bold"
+                    >
+                      {label}
+                    </span>
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-xs text-cyber-white/70">
                         {c.last_message_at || c.last_message_preview
@@ -275,10 +281,7 @@ export default function ConversationList({
                 </div>
                 <ListTags tags={tags} ids={contactTags[c.contact_id]} />
                 <p className="w-full truncate font-mono text-[10px] uppercase tracking-wider text-cyber-white/50">
-                  {c.instance?.label ?? "Sem número"} ·{" "}
-                  {c.assignee?.full_name ??
-                    assignees.find((a) => a.id === c.assigned_to)?.full_name ??
-                    (c.assigned_to ? "Responsável" : "Sem responsável")}
+                  {c.instance?.label ?? "Sem número"}
                 </p>
               </button>
             </li>

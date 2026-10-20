@@ -85,3 +85,11 @@ export function previewLabel(preview: string | null) {
   const key = preview.trim().replace(/^[\[(]|[\])]$/g, "").toLowerCase();
   return PREVIEW_BY_TYPE[key] ?? preview;
 }
+
+// "ANA-COMERCIAL": nome do contato + setor do número, em caixa alta. Sem setor: "ANA-SEM SETOR".
+export function formatContactLabel(
+  contact: { name: string | null; push_name: string | null; phone: string } | null,
+  sector: { name: string } | null | undefined
+) {
+  return `${displayName(contact)}-${sector?.name ?? "Sem setor"}`.toLocaleUpperCase("pt-BR");
+}

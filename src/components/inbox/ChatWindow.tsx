@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCheck, Clock, Loader2, Mic, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMessages } from "@/lib/inbox-queries";
-import { displayName, formatPhone, formatTime, initials } from "@/lib/format";
+import { displayName, formatContactLabel, formatPhone, formatTime, initials } from "@/lib/format";
 import { baseMime, kindFromMime, validateFileClient } from "@/lib/media";
 import type {
   Assignee,
@@ -446,6 +446,7 @@ export default function ChatWindow({
 
   const name = displayName(conversation.contact);
   const sector = conversationSector(conversation, sectors);
+  const label = formatContactLabel(conversation.contact, sector);
 
   return (
     <section
@@ -479,15 +480,13 @@ export default function ChatWindow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <h2 className="truncate text-sm font-bold">{name}</h2>
+            <h2 title={label} className="truncate text-sm font-bold">
+              {label}
+            </h2>
             <SectorTag sector={sector} size="lg" className="max-w-[50%]" />
           </div>
           <p className="truncate text-xs text-cyber-white/70">
-            {conversation.instance
-              ? `${conversation.instance.label}${
-                  conversation.instance.phone ? ` · ${formatPhone(conversation.instance.phone)}` : ""
-                }`
-              : "Sem número"}
+            {conversation.contact ? formatPhone(conversation.contact.phone) : ""}
           </p>
         </div>
         <ConversationActions

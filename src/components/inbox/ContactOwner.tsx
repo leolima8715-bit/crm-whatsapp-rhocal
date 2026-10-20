@@ -36,11 +36,6 @@ export default function ContactOwner({
   const [notice, setNotice] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
 
-  const ownerName =
-    assignees.find((a) => a.id === conversation.assigned_to)?.full_name ??
-    conversation.assignee?.full_name ??
-    null;
-
   // Gestor transfere qualquer contato (inclusive sem responsável); os demais só os seus.
   const canTransfer = isGestor || conversation.assigned_to === currentUserId;
 
@@ -75,9 +70,6 @@ export default function ContactOwner({
     return (
       <>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <p className="text-right text-xs text-cyber-white/70">
-            Responsável: <span className="font-semibold text-cyber-white">{ownerName ?? "Sem responsável"}</span>
-          </p>
           {transferBtn}
         </div>
         {error && <p className="text-xs text-cyber-orange">{error}</p>}
@@ -89,11 +81,7 @@ export default function ContactOwner({
 
   return (
     <div>
-      <dt className="font-mono text-xs uppercase tracking-widest text-cyber-cyan">Responsável</dt>
-      <dd className="mt-1 text-sm">
-        {ownerName ?? (conversation.assigned_to ? "—" : "Sem responsável")}
-      </dd>
-      <p className="mt-1 text-xs text-cyber-white/50">Vale para todas as conversas deste contato.</p>
+      <p className="text-xs text-cyber-white/50">Vale para todas as conversas deste contato.</p>
       {transferBtn && (
         <div className="mt-2 flex flex-wrap gap-2">
           {transferBtn}
