@@ -72,12 +72,6 @@ export default function ConversationList({
   sectorChips,
   onNewConversation,
 }: Props) {
-  const tabs: { id: Tab; label: string; count: number; extra?: number }[] = [
-    { id: "all", label: "Todas", count: counts.all },
-    { id: "mine", label: "Minhas", count: counts.mine, extra: counts.mineUnread },
-    { id: "unassigned", label: "Sem responsável", count: counts.unassigned },
-  ];
-
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-cyber-line bg-cyber-panel">
       <ConversationFilters
