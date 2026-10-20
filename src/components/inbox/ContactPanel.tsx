@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { ConversationRow, SectorOption, Tag, TransferEntry } from "@/lib/inbox-types";
+import type { Assignee, ConversationRow, SectorOption, Tag, TransferEntry } from "@/lib/inbox-types";
+import ContactOwner from "./ContactOwner";
 import { DealSection, NotesSection, TagsSection } from "./ContactExtras";
 import { displayName, formatPhone, initials } from "@/lib/format";
 
@@ -34,11 +35,22 @@ function dateTime(iso: string) {
 function ContactForm({
   conversation,
   onSaved,
+  isGestor,
+  assignees,
+  onOwnerChanged,
 }: {
   conversation: ConversationRow;
   onSaved: (contactId: string, fields: Partial<ContactFields>) => void;
+  isGestor: boolean;
+  assignees: Assignee[];
+  onOwnerChanged: (conversationId: string) => void;
 }) {
   const c = conversation.contact;
+  const [owner, setOwner] = useState(conversation.assigned_to ?? "");
+  // Acompanha mudanças feitas fora do formulário (transferir/assumir), para não reverter o responsável.
+  useEffect(() => {
+    setOwner(conversation.assigned_to ?? "");
+  }, [conversation.assigned_to]);
   const [form, setForm] = useState({
     name: c?.name ?? "",
     company: c?.company ?? "",
@@ -64,11 +76,16 @@ function ContactForm({
       const res = await fetch(`/api/contacts/${conversation.contact_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(
+          isGestor && owner !== (conversation.assigned_to ?? "")
+            ? { ...form, owner_id: owner || null }
+            : form
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Erro inesperado. Tente novamente.");
       onSaved(conversation.contact_id, data.contact);
+      if (isGestor && owner !== (conversation.assigned_to ?? "")) onOwnerChanged(conversation.id);
       setSaved(true);
     } catch (err) {
       setError((err as Error).message);
@@ -127,6 +144,30 @@ function ContactForm({
           className={`${inputCls} resize-none`}
         />
       </label>
+
+      {isGestor && (
+        <label className="block">
+          <span className={labelCls}>Responsável</span>
+          <select
+            value={owner}
+            onChange={(e) => {
+              setOwner(e.target.value);
+              setSaved(false);
+            }}
+            className={inputCls}
+          >
+            <option value="">Sem responsável</option>
+            {assignees.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.full_name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-cyber-white/50">
+            Vale para todas as conversas deste contato.
+          </span>
+        </label>
+      )}
 
       {error && <p className="text-xs text-cyber-orange">{error}</p>}
       {saved && <p className="text-xs text-cyber-cyan">Contato salvo.</p>}
@@ -210,7 +251,13 @@ export default function ContactPanel({
   contactTagIds,
   onTagsChange,
   onTagCreated,
+  currentUserId,
+  assignees,
+  onOwnerChanged,
 }: {
+  currentUserId: string;
+  assignees: Assignee[];
+  onOwnerChanged: (conversationId: string, movedTo?: string) => void;
   conversation: ConversationRow | null;
   sectors: SectorOption[];
   onContactSaved: (contactId: string, fields: Partial<ContactFields>) => void;
@@ -245,9 +292,13 @@ export default function ContactPanel({
           value={conversation.contact ? formatPhone(conversation.contact.phone) : "—"}
         />
         <ReadOnly label="Número de origem" value={origin} />
-        <ReadOnly
-          label="Responsável"
-          value={conversation.assignee?.full_name ?? (conversation.assigned_to ? "—" : "Sem responsável")}
+        <ContactOwner
+          variant="panel"
+          conversation={conversation}
+          currentUserId={currentUserId}
+          isGestor={isGestor}
+          assignees={assignees}
+          onChanged={onOwnerChanged}
         />
         <ReadOnly label="Setor" value={sectorName} />
       </dl>
@@ -278,6 +329,9 @@ export default function ContactPanel({
           key={conversation.contact_id}
           conversation={conversation}
           onSaved={onContactSaved}
+          isGestor={isGestor}
+          assignees={assignees}
+          onOwnerChanged={onOwnerChanged}
         />
       </div>
 

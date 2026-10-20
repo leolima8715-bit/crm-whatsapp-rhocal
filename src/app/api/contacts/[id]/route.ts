@@ -40,13 +40,38 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
       update[field] = value || null;
     }
-    if (Object.keys(update).length === 0) throw new HttpError("Nada para atualizar.", 400);
+    const admin = createAdminClient();
+
+    // Responsável do contato: só o gestor altera (triggers sincronizam as conversas).
+    const ownerUpdate: { owner_id?: string | null } = {};
+    if (body?.owner_id !== undefined) {
+      if (profile.role !== "gestor") {
+        throw new HttpError("Só o gestor pode alterar o responsável pelo formulário.", 403);
+      }
+      if (body.owner_id === null || body.owner_id === "") {
+        ownerUpdate.owner_id = null;
+      } else if (isUuid(body.owner_id)) {
+        const { data: p } = await admin
+          .from("profiles")
+          .select("id")
+          .eq("id", body.owner_id)
+          .eq("org_id", profile.org_id)
+          .eq("active", true)
+          .maybeSingle();
+        if (!p) throw new HttpError("Essa pessoa não está ativa nesta organização.", 400);
+        ownerUpdate.owner_id = body.owner_id;
+      } else {
+        throw new HttpError("Pessoa inválida.", 400);
+      }
+    }
+    if (Object.keys(update).length === 0 && !("owner_id" in ownerUpdate)) {
+      throw new HttpError("Nada para atualizar.", 400);
+    }
 
     // org_id e phone nunca são alterados por esta rota.
-    const admin = createAdminClient();
     const { data, error } = await admin
       .from("contacts")
-      .update(update)
+      .update({ ...update, ...ownerUpdate })
       .eq("id", params.id)
       .eq("org_id", profile.org_id)
       .select("id, name, company, email, document, notes")

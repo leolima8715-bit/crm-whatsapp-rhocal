@@ -360,6 +360,9 @@ export default function InboxShell({
         conversation={selected}
         sectors={sectors}
         onContactSaved={handleContactSaved}
+        currentUserId={currentUserId}
+        assignees={assignees}
+        onOwnerChanged={refreshConversation}
         isGestor={isGestor}
         tags={tags}
         contactTagIds={selected ? (contactTags[selected.contact_id] ?? []) : []}

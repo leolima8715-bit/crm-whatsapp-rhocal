@@ -62,3 +62,15 @@ export async function recordTransfer(
 export async function conversationPayload(admin: Admin, id: string) {
   return fetchConversation(admin, id);
 }
+
+// Responsável atual do contato da conversa (fonte da verdade: contacts.owner_id).
+export async function loadContactOwner(admin: Admin, conv: AccessibleConversation): Promise<string | null> {
+  const { data, error } = await admin
+    .from("contacts")
+    .select("owner_id")
+    .eq("id", conv.contact_id)
+    .eq("org_id", conv.org_id)
+    .maybeSingle();
+  if (error || !data) throw new HttpError("Contato não encontrado.", 404);
+  return (data.owner_id as string | null) ?? null;
+}

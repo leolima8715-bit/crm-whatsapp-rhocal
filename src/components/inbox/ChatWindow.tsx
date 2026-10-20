@@ -495,7 +495,6 @@ export default function ChatWindow({
           currentUserId={currentUserId}
           isGestor={isGestor}
           assignees={assignees}
-          sectors={sectors}
           onChanged={onChanged}
         />
       </header>
