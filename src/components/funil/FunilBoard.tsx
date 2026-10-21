@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { Settings2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName, formatContactLabel, previewLabel, relativeTime } from "@/lib/format";
 import {
   ownerIdOf,
@@ -168,6 +167,17 @@ export default function FunilBoard({
   conversationsRef.current = conversations;
   const dragging = useRef(false);
 
+  async function reloadFunil() {
+    try {
+      const res = await fetch("/api/funil", { cache: "no-store" });
+      if (!res.ok) return null;
+      const d = await res.json();
+      return { conversations: (d.conversations ?? []) as ConversationRow[], stages: (d.stages ?? []) as StageRow[] };
+    } catch {
+      return null;
+    }
+  }
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const loadMeta = useCallback(() => {
@@ -199,10 +209,14 @@ export default function FunilBoard({
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    // Recarrega pelo servidor (mesma regra de acesso da página). Se falhar, mantém o que já está na tela.
     const refetchAll = async () => {
       if (dragging.current) return;
-      const fresh = await fetchConversations(supabase, 500);
-      setConversations(fresh);
+      const data = await reloadFunil();
+      if (data) {
+        setConversations(data.conversations);
+        setStages(data.stages);
+      }
       loadMeta();
     };
     const revalidate = () => {
@@ -216,11 +230,7 @@ export default function FunilBoard({
     const onConversation = async (row: Partial<ConversationRow> & { id: string }) => {
       const existing = conversationsRef.current.find((c) => c.id === row.id);
       if (!existing || (row.sector_id !== undefined && row.sector_id !== existing.sector_id)) {
-        const full = await fetchConversation(supabase, row.id);
-        setConversations((prev) => {
-          const rest = prev.filter((c) => c.id !== row.id);
-          return full ? [...rest, full] : rest;
-        });
+        revalidate();
         return;
       }
       setConversations((prev) =>
@@ -409,9 +419,15 @@ export default function FunilBoard({
         </div>
 
         {isGestor && (
+          <span className="ml-auto font-mono text-[11px] text-cyber-white/60" title="Conversas carregadas / visíveis após os filtros">
+            {conversations.length} conversas, {visible.length} visíveis
+          </span>
+        )}
+
+        {isGestor && (
           <button
             onClick={() => setEditing(true)}
-            className="ml-auto flex items-center gap-1.5 rounded-lg border border-cyber-line px-3 py-1.5 text-xs text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+            className="flex items-center gap-1.5 rounded-lg border border-cyber-line px-3 py-1.5 text-xs text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
           >
             <Settings2 size={14} /> Editar etapas
           </button>
@@ -433,7 +449,7 @@ export default function FunilBoard({
           setActiveId(null);
         }}
       >
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3">
+        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-3">
           {stages.map((s) => (
             <Column
               key={s.id}
@@ -463,7 +479,7 @@ export default function FunilBoard({
           }, {})}
           onClose={() => setEditing(false)}
           onChanged={(next) => setStages(next)}
-          onMoved={() => fetchConversations(supabase, 500).then(setConversations)}
+          onMoved={() => reloadFunil().then((d) => d && setConversations(d.conversations))}
         />
       )}
     </div>

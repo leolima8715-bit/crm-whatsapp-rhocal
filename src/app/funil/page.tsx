@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchConversations } from "@/lib/inbox-queries";
-import { loadStages } from "@/lib/stages";
+import { loadFunilData } from "@/lib/funil-server";
 import LogoutButton from "@/components/LogoutButton";
 import FunilBoard from "@/components/funil/FunilBoard";
 
@@ -25,11 +24,7 @@ export default async function FunilPage() {
     .single();
   if (!profile) redirect("/inbox");
 
-  // Conversas com o client do usuário (RLS = can_access_conversation); etapas são da organização.
-  const [conversations, stages] = await Promise.all([
-    fetchConversations(supabase, 500),
-    loadStages(createAdminClient(), profile.org_id),
-  ]);
+  const { conversations, stages } = await loadFunilData(createAdminClient(), supabase, profile);
 
   return (
     <main className="flex h-screen flex-col">
