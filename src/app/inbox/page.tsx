@@ -9,6 +9,7 @@ import LogoutButton from "@/components/LogoutButton";
 import InboxShell from "@/components/inbox/InboxShell";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const roleLabel: Record<string, string> = {
   gestor: "Gestor",

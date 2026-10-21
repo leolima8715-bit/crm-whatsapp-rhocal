@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type Tag } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import ConversationFilters from "./ConversationFilters";
@@ -162,6 +163,14 @@ export default function ConversationList({
                   {c.instance?.label ?? "Sem número"}
                 </p>
               </button>
+              {!hasSector && isGestor && (
+                <Link
+                  href="/numeros"
+                  className="mt-0.5 block px-3 font-mono text-[10px] uppercase tracking-wider text-cyber-cyan hover:underline"
+                >
+                  Definir setor
+                </Link>
+              )}
             </li>
           );
         })}

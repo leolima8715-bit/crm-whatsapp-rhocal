@@ -73,8 +73,8 @@ export default function InboxShell({
   const readInFlight = useRef(new Set<string>());
 
   // Pessoas e setores para os seletores (transferência e filtros).
-  useEffect(() => {
-    fetch("/api/assignees")
+  const loadAssignees = useCallback(() => {
+    fetch("/api/assignees", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
@@ -83,6 +83,66 @@ export default function InboxShell({
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadAssignees();
+  }, [loadAssignees]);
+
+  // Setor/cor vêm sempre de conversations -> whatsapp_instances -> sectors. Para refletir mudanças de
+  // setores e números sem recarregar a página: Realtime (se habilitado) + revalidação ao focar a
+  // janela e a cada 30s (rede de segurança caso o Realtime não esteja ligado nessas tabelas).
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const revalidate = () => {
+      if (timer) return;
+      timer = setTimeout(async () => {
+        timer = null;
+        const fresh = await fetchConversations(supabase, 100);
+        setConversations((prev) => {
+          const unread = new Map(prev.map((c) => [c.id, c.unread_count]));
+          const kept = prev.filter((c) => !fresh.some((f) => f.id === c.id));
+          return sortConversations([
+            ...fresh.map((f) => (f.id === selectedRef.current ? { ...f, unread_count: unread.get(f.id) ?? 0 } : f)),
+            ...kept.filter((c) => c.id === selectedRef.current),
+          ]);
+        });
+        loadAssignees();
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel("inbox-sectors")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sectors" }, revalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_instances" }, revalidate)
+      .subscribe();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") revalidate();
+    };
+    window.addEventListener("focus", revalidate);
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") revalidate();
+    }, 30_000);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener("focus", revalidate);
+      document.removeEventListener("visibilitychange", onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, loadAssignees]);
+
+  // Aviso (somente em dev) para conversas cujo número não tem setor.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    for (const c of conversations) {
+      if (!conversationSector(c, sectors).id) {
+        console.warn(`[inbox] conversa ${c.id} sem setor (instance_id: ${c.instance_id})`);
+      }
+    }
+  }, [conversations, sectors]);
 
   // Tags da organização e respostas rápidas.
   useEffect(() => {
@@ -212,7 +272,11 @@ export default function InboxShell({
       const existing = conversationsRef.current.find((c) => c.id === row.id);
 
       // Conversa nova ou que passou a ficar visível para mim (ex.: transferida): busca tudo.
-      if (!existing || (row.assigned_to !== undefined && row.assigned_to !== existing.assigned_to)) {
+      if (
+        !existing ||
+        (row.assigned_to !== undefined && row.assigned_to !== existing.assigned_to) ||
+        (row.sector_id !== undefined && row.sector_id !== existing.sector_id)
+      ) {
         const full = await fetchConversation(supabase, row.id);
         if (!full) {
           if (existing) setConversations((prev) => prev.filter((c) => c.id !== row.id));
