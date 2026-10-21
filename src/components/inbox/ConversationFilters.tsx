@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Filter, Plus, X } from "lucide-react";
-import type { Assignee, Tag } from "@/lib/inbox-types";
+import type { Assignee, StageRow, Tag } from "@/lib/inbox-types";
 import { sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import type { Filters, StatusFilter, Tab } from "./ConversationList";
 
@@ -13,6 +13,7 @@ export const DEFAULT_FILTERS: Filters = {
   instance: "",
   tag: "",
   sector: "",
+  stage: "",
 };
 
 const TAB_LABEL: Record<Tab, string> = { all: "Todas", mine: "Minhas", unassigned: "Sem responsável" };
@@ -41,6 +42,7 @@ type Props = {
   instances: { id: string; label: string }[];
   tags: Tag[];
   sectorChips: SectorInfo[];
+  stages: StageRow[];
   onNewConversation: () => void;
 };
 
@@ -57,6 +59,7 @@ export default function ConversationFilters({
   instances,
   tags,
   sectorChips,
+  stages,
   onNewConversation,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -79,6 +82,15 @@ export default function ConversationFilters({
       label: s?.name ?? "Setor",
       color: s ? sectorStyle(s.color).stripe : undefined,
       clear: () => set({ sector: "" }),
+    });
+  }
+  if (filters.stage) {
+    const st = stages.find((x) => x.id === filters.stage);
+    active.push({
+      key: "stage",
+      label: `Etapa: ${st?.name ?? "—"}`,
+      color: st?.color,
+      clear: () => set({ stage: "" }),
     });
   }
   if (filters.tab !== "all") {
@@ -274,6 +286,25 @@ export default function ConversationFilters({
                   ))}
                 </div>
               </section>
+
+              {stages.length > 0 && (
+                <section>
+                  <h3 className={`${sectionCls} mb-1.5`}>Etapa</h3>
+                  <select
+                    value={filters.stage}
+                    onChange={(e) => set({ stage: e.target.value })}
+                    aria-label="Filtrar por etapa"
+                    className={selectCls}
+                  >
+                    <option value="">Etapa: todas</option>
+                    {stages.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </section>
+              )}
 
               {tags.length > 0 && (
                 <section>

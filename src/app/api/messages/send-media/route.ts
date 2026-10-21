@@ -3,6 +3,7 @@ import { errorResponse, HttpError, requireUser } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
 import { MESSAGE_SELECT } from "@/lib/inbox-queries";
 import { BUCKET, MAX_BYTES, baseMime, isAllowedMime } from "@/lib/media";
+import { applyMessageAutomation } from "@/lib/stages";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/users";
 
@@ -119,6 +120,9 @@ export async function POST(req: Request) {
       .insert({ ...base, status: "sent", external_id: externalId })
       .select(MESSAGE_SELECT)
       .single();
+    if (!error || error.code === "23505") {
+      await applyMessageAutomation(admin, { conversationId: conv.id, orgId: conv.org_id, event: "out" });
+    }
     if (!error) return NextResponse.json({ message: inserted });
 
     // O webhook (fromMe) pode ter gravado antes: completa autor e arquivo.

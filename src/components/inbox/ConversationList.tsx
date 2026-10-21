@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type Tag } from "@/lib/inbox-types";
+import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type StageRow, type Tag } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import ConversationFilters from "./ConversationFilters";
 import TagChip from "./TagChip";
@@ -18,6 +18,7 @@ export type Filters = {
   instance: string; // "" = todos
   tag: string; // "" = todas
   sector: string; // "" = todos, "none" = sem setor, senão id do setor
+  stage: string; // "" = todas, senão id da etapa
 };
 
 type Props = {
@@ -37,6 +38,7 @@ type Props = {
   contactTags: ContactTagsMap;
   sectors: SectorOption[];
   sectorChips: SectorInfo[];
+  stages: StageRow[];
   onNewConversation: () => void;
 };
 
@@ -71,6 +73,7 @@ export default function ConversationList({
   contactTags,
   sectors,
   sectorChips,
+  stages,
   onNewConversation,
 }: Props) {
   return (
@@ -86,6 +89,7 @@ export default function ConversationList({
         instances={instances}
         tags={tags}
         sectorChips={sectorChips}
+        stages={stages}
         onNewConversation={onNewConversation}
       />
 

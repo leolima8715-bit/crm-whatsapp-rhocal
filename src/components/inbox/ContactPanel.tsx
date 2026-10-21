@@ -13,7 +13,7 @@ import {
 } from "@/lib/inbox-types";
 import { conversationSector } from "@/lib/sector-style";
 import ContactOwner from "./ContactOwner";
-import { DealSection, NotesSection, TagsSection } from "./ContactExtras";
+import { NotesSection, TagsSection } from "./ContactExtras";
 import { displayName, formatContactLabel, formatPhone, initials } from "@/lib/format";
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
@@ -328,15 +328,6 @@ export default function ContactPanel({
           isGestor={isGestor}
           onChange={(ids) => onTagsChange(conversation.contact_id, ids)}
           onTagCreated={onTagCreated}
-        />
-      </div>
-
-      <div className="mt-6 border-t border-cyber-line pt-5">
-        <DealSection
-          key={`deal-${conversation.contact_id}`}
-          contactId={conversation.contact_id}
-          contactName={name}
-          isGestor={isGestor}
         />
       </div>
 

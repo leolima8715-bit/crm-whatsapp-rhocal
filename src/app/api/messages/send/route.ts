@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireUser } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
 import { MESSAGE_SELECT } from "@/lib/inbox-queries";
+import { applyMessageAutomation } from "@/lib/stages";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +74,10 @@ export async function POST(req: Request) {
       .select(MESSAGE_SELECT)
       .single();
 
-    if (!error) return NextResponse.json({ message: inserted });
+    if (!error || error.code === "23505") {
+    await applyMessageAutomation(admin, { conversationId: conv.id, orgId: conv.org_id, event: "out" });
+  }
+  if (!error) return NextResponse.json({ message: inserted });
 
     // O webhook (fromMe) pode ter gravado antes: só atribui o autor.
     if (error.code === "23505" && externalId) {

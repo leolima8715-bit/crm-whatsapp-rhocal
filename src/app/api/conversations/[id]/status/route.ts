@@ -5,6 +5,8 @@ import {
   conversationPayload,
   loadAccessibleConversation,
 } from "@/lib/conversations-server";
+import type { ConversationStatus } from "@/lib/inbox-types";
+import { syncStageWithStatus } from "@/lib/stages";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +29,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .eq("id", conv.id)
       .eq("org_id", conv.org_id);
     if (error) throw new HttpError("Erro ao alterar o status.", 500);
+
+    await syncStageWithStatus(admin, {
+      conversationId: conv.id,
+      orgId: conv.org_id,
+      status: status as ConversationStatus,
+      previous: conv.status,
+    });
 
     return NextResponse.json({ conversation: await conversationPayload(admin, conv.id) });
   } catch (e) {

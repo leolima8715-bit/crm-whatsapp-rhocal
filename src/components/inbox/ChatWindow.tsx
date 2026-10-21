@@ -13,6 +13,7 @@ import {
   type MessageRow,
   type QuickReply,
   type SectorOption,
+  type StageRow,
 } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle } from "@/lib/sector-style";
 import AttachmentPanel from "./AttachmentPanel";
@@ -99,6 +100,7 @@ export default function ChatWindow({
   isGestor,
   assignees,
   sectors,
+  stages,
   onChanged,
   quickReplies,
   currentUserName,
@@ -110,6 +112,7 @@ export default function ChatWindow({
   isGestor: boolean;
   assignees: Assignee[];
   sectors: SectorOption[];
+  stages: StageRow[];
   onChanged: (conversationId: string, movedTo?: string) => void;
   quickReplies: QuickReply[];
   currentUserName: string;
@@ -497,6 +500,7 @@ export default function ChatWindow({
           currentUserId={currentUserId}
           isGestor={isGestor}
           assignees={assignees}
+          stages={stages}
           onChanged={onChanged}
         />
       </header>

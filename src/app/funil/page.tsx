@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchConversations } from "@/lib/inbox-queries";
+import { loadStages } from "@/lib/stages";
 import LogoutButton from "@/components/LogoutButton";
 import FunilBoard from "@/components/funil/FunilBoard";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function FunilPage() {
   const supabase = createClient();
@@ -16,10 +20,16 @@ export default async function FunilPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, org_id")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/inbox");
+
+  // Conversas com o client do usuário (RLS = can_access_conversation); etapas são da organização.
+  const [conversations, stages] = await Promise.all([
+    fetchConversations(supabase, 500),
+    loadStages(createAdminClient(), profile.org_id),
+  ]);
 
   return (
     <main className="flex h-screen flex-col">
@@ -28,7 +38,7 @@ export default async function FunilPage() {
           <p className="font-mono text-[10px] uppercase tracking-widest text-cyber-cyan">
             CRM WhatsApp · RHOCAL
           </p>
-          <p className="text-sm font-bold">Funil · {profile.full_name}</p>
+          <p className="text-sm font-bold">Funil de conversas · {profile.full_name}</p>
         </div>
 
         <Link
@@ -41,7 +51,11 @@ export default async function FunilPage() {
         <LogoutButton />
       </header>
 
-      <FunilBoard currentUserId={user.id} />
+      <FunilBoard
+        initialConversations={conversations}
+        initialStages={stages}
+        isGestor={profile.role === "gestor"}
+      />
     </main>
   );
 }

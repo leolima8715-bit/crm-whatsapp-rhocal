@@ -7,6 +7,7 @@ export type ConversationRow = {
   instance_id: string;
   assigned_to: string | null;
   sector_id: string | null;
+  stage_id: string | null;
   status: ConversationStatus;
   unread_count: number;
   last_message_at: string | null;
@@ -63,6 +64,14 @@ export function ownerNameOf(
     (id === c.assigned_to ? (c.assignee?.full_name ?? null) : null)
   );
 }
+
+export type StageRow = {
+  id: string;
+  name: string;
+  position: number;
+  color: string;
+  kind: "open" | "done";
+};
 
 export type Assignee = { id: string; full_name: string; role: string; sector_ids: string[] };
 export type SectorOption = { id: string; name: string; color?: string | null };

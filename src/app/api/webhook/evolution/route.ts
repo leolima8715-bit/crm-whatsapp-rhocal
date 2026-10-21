@@ -2,6 +2,7 @@
 import { createHash, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { MEDIA_TYPES, downloadAndStoreMedia } from "@/lib/media-server";
+import { applyMessageAutomation } from "@/lib/stages";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -234,6 +235,11 @@ async function handleUpsert(admin: Admin, inst: Instance, item: any) {
   if (error) {
     if (error.code === "23505") return;
     throw new DbError("messages insert");
+  }
+
+  // Mensagem recebida reabre/avança a etapa da conversa (não bloqueia o webhook se falhar).
+  if (direction === "in") {
+    await applyMessageAutomation(admin, { conversationId, orgId: inst.org_id, event: "in" });
   }
 
   // Mídia: baixa só quando a mensagem é nova. Falha aqui nunca derruba o webhook.

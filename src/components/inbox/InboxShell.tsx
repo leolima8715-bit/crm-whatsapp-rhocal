@@ -11,6 +11,7 @@ import {
   type ConversationRow,
   type QuickReply,
   type SectorOption,
+  type StageRow,
   type Tag,
 } from "@/lib/inbox-types";
 import { conversationSector, sectorInfo, type SectorInfo } from "@/lib/sector-style";
@@ -56,9 +57,11 @@ export default function InboxShell({
     instance: "",
     tag: "",
     sector: "",
+    stage: "",
   });
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
+  const [stages, setStages] = useState<StageRow[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [contactTags, setContactTags] = useState<ContactTagsMap>(initialContactTags);
@@ -81,6 +84,10 @@ export default function InboxShell({
         setAssignees(d.assignees ?? []);
         setSectors(d.sectors ?? []);
       })
+      .catch(() => {});
+    fetch("/api/stages", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setStages(d.stages ?? []))
       .catch(() => {});
   }, []);
 
@@ -114,6 +121,7 @@ export default function InboxShell({
       .channel("inbox-sectors")
       .on("postgres_changes", { event: "*", schema: "public", table: "sectors" }, revalidate)
       .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_instances" }, revalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversation_stages" }, revalidate)
       .subscribe();
 
     const onVisible = () => {
@@ -241,7 +249,7 @@ export default function InboxShell({
   async function handleNewConversation(id: string, existingText?: string) {
     setNewOpen(false);
     await refreshConversation(id);
-    setFilters({ tab: "all", status: "all", assignee: "", instance: "", tag: "", sector: "" });
+    setFilters({ tab: "all", status: "all", assignee: "", instance: "", tag: "", sector: "", stage: "" });
     setSearch("");
     setDraft(existingText ? { conversationId: id, text: existingText } : null);
     setSelectedId(id);
@@ -292,6 +300,7 @@ export default function InboxShell({
       const merged: ConversationRow = {
         ...existing,
         status: row.status ?? existing.status,
+        stage_id: row.stage_id !== undefined ? row.stage_id : existing.stage_id,
         sector_id: row.sector_id !== undefined ? row.sector_id : existing.sector_id,
         unread_count: row.unread_count ?? existing.unread_count,
         last_message_at: row.last_message_at ?? existing.last_message_at,
@@ -338,6 +347,7 @@ export default function InboxShell({
           (!isGestor || !filters.assignee || ownerIdOf(c) === filters.assignee) &&
           (!isGestor || !filters.instance || c.instance_id === filters.instance) &&
           (!filters.sector || (conversationSector(c, sectors).id ?? "none") === filters.sector) &&
+          (!filters.stage || c.stage_id === filters.stage) &&
           (!filters.tag || (contactTags[c.contact_id] ?? []).includes(filters.tag))
       ),
     [conversations, filters, isGestor, contactTags, sectors]
@@ -417,6 +427,7 @@ export default function InboxShell({
         contactTags={contactTags}
         sectors={sectors}
         sectorChips={sectorChips}
+        stages={stages}
         onNewConversation={() => setNewOpen(true)}
       />
       {newOpen && (
@@ -435,6 +446,7 @@ export default function InboxShell({
           isGestor={isGestor}
           assignees={assignees}
           sectors={sectors}
+          stages={stages}
           onChanged={refreshConversation}
           quickReplies={quickReplies}
           currentUserName={currentUserName}
