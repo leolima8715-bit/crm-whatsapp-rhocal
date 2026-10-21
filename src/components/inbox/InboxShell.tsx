@@ -7,12 +7,10 @@ import { displayName } from "@/lib/format";
 import {
   ownerIdOf,
   type Assignee,
-  type ContactTagsMap,
   type ConversationRow,
   type QuickReply,
   type SectorOption,
   type StageRow,
-  type Tag,
 } from "@/lib/inbox-types";
 import { conversationSector, sectorInfo, type SectorInfo } from "@/lib/sector-style";
 import ConversationList, { type Filters } from "./ConversationList";
@@ -33,14 +31,12 @@ export default function InboxShell({
   currentUserId,
   currentRole,
   currentUserName,
-  initialContactTags,
   initialSelectedId,
 }: {
   initialConversations: ConversationRow[];
   currentUserId: string;
   currentRole: string;
   currentUserName: string;
-  initialContactTags: ContactTagsMap;
   initialSelectedId: string | null;
 }) {
   const isGestor = currentRole === "gestor";
@@ -55,7 +51,6 @@ export default function InboxShell({
     status: "open",
     assignee: "",
     instance: "",
-    tag: "",
     sector: "",
     stage: "",
   });
@@ -63,8 +58,6 @@ export default function InboxShell({
   const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [stages, setStages] = useState<StageRow[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [contactTags, setContactTags] = useState<ContactTagsMap>(initialContactTags);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [newOpen, setNewOpen] = useState(false);
   const [draft, setDraft] = useState<{ conversationId: string; text: string } | null>(null);
@@ -152,38 +145,12 @@ export default function InboxShell({
     }
   }, [conversations, sectors]);
 
-  // Tags da organização e respostas rápidas.
+  // Respostas rápidas.
   useEffect(() => {
-    fetch("/api/tags")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setTags(d.tags ?? []))
-      .catch(() => {});
     fetch("/api/quick-replies")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setQuickReplies(d.quick_replies ?? []))
       .catch(() => {});
-  }, []);
-
-  // Conversas que chegam depois (tempo real): busca as tags dos contatos novos em lote.
-  useEffect(() => {
-    const missing = Array.from(
-      new Set(conversations.map((c) => c.contact_id).filter((id) => !(id in contactTags)))
-    );
-    if (missing.length === 0) return;
-    // Marca como vazio já, para não repetir a busca; o resultado completa em seguida.
-    setContactTags((prev) => {
-      const next = { ...prev };
-      for (const id of missing) next[id] = next[id] ?? [];
-      return next;
-    });
-    fetch(`/api/contact-tags?contact_ids=${missing.slice(0, 150).join(",")}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setContactTags((prev) => ({ ...prev, ...d.contact_tags })))
-      .catch(() => {});
-  }, [conversations, contactTags]);
-
-  const handleTagsChange = useCallback((contactId: string, ids: string[]) => {
-    setContactTags((prev) => ({ ...prev, [contactId]: ids }));
   }, []);
 
   // Mensagem de aviso some sozinha.
@@ -244,12 +211,36 @@ export default function InboxShell({
     [supabase]
   );
 
+  // Troca de etapa do funil: otimista, com reversão e aviso se o servidor recusar.
+  const handleStageChange = useCallback(
+    async (conversationId: string, stageId: string) => {
+      const before = conversationsRef.current.find((c) => c.id === conversationId);
+      if (!before || before.stage_id === stageId) return;
+      const previous = before.stage_id;
+      setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, stage_id: stageId } : c)));
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/stage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage_id: stageId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error ?? "Erro inesperado. Tente novamente.");
+        refreshConversation(conversationId);
+      } catch (e) {
+        setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, stage_id: previous } : c)));
+        setNotice(`Não foi possível mudar a etapa: ${(e as Error).message}`);
+      }
+    },
+    [refreshConversation]
+  );
+
   // Nova conversa criada (ou já existente): mostra na lista e abre. Se já existia, nada foi
   // enviado e o texto digitado vai para a caixa de mensagem.
   async function handleNewConversation(id: string, existingText?: string) {
     setNewOpen(false);
     await refreshConversation(id);
-    setFilters({ tab: "all", status: "all", assignee: "", instance: "", tag: "", sector: "", stage: "" });
+    setFilters({ tab: "all", status: "all", assignee: "", instance: "", sector: "", stage: "" });
     setSearch("");
     setDraft(existingText ? { conversationId: id, text: existingText } : null);
     setSelectedId(id);
@@ -347,10 +338,9 @@ export default function InboxShell({
           (!isGestor || !filters.assignee || ownerIdOf(c) === filters.assignee) &&
           (!isGestor || !filters.instance || c.instance_id === filters.instance) &&
           (!filters.sector || (conversationSector(c, sectors).id ?? "none") === filters.sector) &&
-          (!filters.stage || c.stage_id === filters.stage) &&
-          (!filters.tag || (contactTags[c.contact_id] ?? []).includes(filters.tag))
+          (!filters.stage || c.stage_id === filters.stage)
       ),
-    [conversations, filters, isGestor, contactTags, sectors]
+    [conversations, filters, isGestor, sectors]
   );
 
   const counts = useMemo(() => {
@@ -423,8 +413,6 @@ export default function InboxShell({
         isGestor={isGestor}
         assignees={assignees}
         instances={instances}
-        tags={tags}
-        contactTags={contactTags}
         sectors={sectors}
         sectorChips={sectorChips}
         stages={stages}
@@ -447,6 +435,7 @@ export default function InboxShell({
           assignees={assignees}
           sectors={sectors}
           stages={stages}
+          onStageChange={handleStageChange}
           onChanged={refreshConversation}
           quickReplies={quickReplies}
           currentUserName={currentUserName}
@@ -461,12 +450,8 @@ export default function InboxShell({
         assignees={assignees}
         onOwnerChanged={refreshConversation}
         isGestor={isGestor}
-        tags={tags}
-        contactTagIds={selected ? (contactTags[selected.contact_id] ?? []) : []}
-        onTagsChange={handleTagsChange}
-        onTagCreated={(t) =>
-          setTags((prev) => [...prev, t].sort((a, b) => a.name.localeCompare(b.name)))
-        }
+        stages={stages}
+        onStageChange={handleStageChange}
       />
     </div>
   );

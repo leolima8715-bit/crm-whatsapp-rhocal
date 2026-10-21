@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Filter, Plus, X } from "lucide-react";
-import type { Assignee, StageRow, Tag } from "@/lib/inbox-types";
-import { sectorStyle, type SectorInfo } from "@/lib/sector-style";
+import type { Assignee, StageRow } from "@/lib/inbox-types";
+import { alpha, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import type { Filters, StatusFilter, Tab } from "./ConversationList";
 
 export const DEFAULT_FILTERS: Filters = {
@@ -11,7 +11,6 @@ export const DEFAULT_FILTERS: Filters = {
   status: "open",
   assignee: "",
   instance: "",
-  tag: "",
   sector: "",
   stage: "",
 };
@@ -40,7 +39,6 @@ type Props = {
   isGestor: boolean;
   assignees: Assignee[];
   instances: { id: string; label: string }[];
-  tags: Tag[];
   sectorChips: SectorInfo[];
   stages: StageRow[];
   onNewConversation: () => void;
@@ -57,7 +55,6 @@ export default function ConversationFilters({
   isGestor,
   assignees,
   instances,
-  tags,
   sectorChips,
   stages,
   onNewConversation,
@@ -88,7 +85,7 @@ export default function ConversationFilters({
     const st = stages.find((x) => x.id === filters.stage);
     active.push({
       key: "stage",
-      label: `Etapa: ${st?.name ?? "—"}`,
+      label: `Funil: ${st?.name ?? "—"}`,
       color: st?.color,
       clear: () => set({ stage: "" }),
     });
@@ -98,13 +95,6 @@ export default function ConversationFilters({
   }
   if (filters.status !== "open") {
     active.push({ key: "status", label: STATUS_LABEL[filters.status], clear: () => set({ status: "open" }) });
-  }
-  if (filters.tag) {
-    active.push({
-      key: "tag",
-      label: `Tag: ${tags.find((t) => t.id === filters.tag)?.name ?? "—"}`,
-      clear: () => set({ tag: "" }),
-    });
   }
   if (isGestor && filters.assignee) {
     active.push({
@@ -289,39 +279,33 @@ export default function ConversationFilters({
 
               {stages.length > 0 && (
                 <section>
-                  <h3 className={`${sectionCls} mb-1.5`}>Etapa</h3>
-                  <select
-                    value={filters.stage}
-                    onChange={(e) => set({ stage: e.target.value })}
-                    aria-label="Filtrar por etapa"
-                    className={selectCls}
-                  >
-                    <option value="">Etapa: todas</option>
-                    {stages.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </section>
-              )}
-
-              {tags.length > 0 && (
-                <section>
-                  <h3 className={`${sectionCls} mb-1.5`}>Tag</h3>
-                  <select
-                    value={filters.tag}
-                    onChange={(e) => set({ tag: e.target.value })}
-                    aria-label="Filtrar por tag"
-                    className={selectCls}
-                  >
-                    <option value="">Tag: todas</option>
-                    {tags.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                  <h3 className={`${sectionCls} mb-1.5`}>Funil</h3>
+                  <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por funil">
+                    <button
+                      onClick={() => set({ stage: "" })}
+                      aria-pressed={filters.stage === ""}
+                      className={`${pillCls} ${filters.stage === "" ? pillOn : pillOff}`}
+                    >
+                      Todas
+                    </button>
+                    {stages.map((s) => {
+                      const on = filters.stage === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => set({ stage: on ? "" : s.id })}
+                          aria-pressed={on}
+                          style={on ? { borderColor: s.color, backgroundColor: alpha(s.color, 0.15) } : undefined}
+                          className={`flex items-center gap-1.5 ${pillCls} ${
+                            on ? "text-cyber-white" : "border-cyber-line text-cyber-white/70 hover:border-cyber-white/30"
+                          }`}
+                        >
+                          <span aria-hidden style={{ backgroundColor: s.color }} className="h-2 w-2 shrink-0 rounded-full" />
+                          <span className="truncate">{s.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </section>
               )}
 

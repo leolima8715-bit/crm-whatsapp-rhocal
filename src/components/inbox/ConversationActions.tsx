@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Assignee, ConversationRow, ConversationStatus, StageRow } from "@/lib/inbox-types";
 import ContactOwner from "./ContactOwner";
-import { alpha } from "@/lib/sector-style";
+import StageSelect from "./StageSelect";
 
 const STATUS_OPTIONS: { value: ConversationStatus; label: string; cls: string }[] = [
   { value: "open", label: "Aberta", cls: "border-cyber-cyan/60 text-cyber-cyan" },
@@ -17,6 +18,7 @@ export default function ConversationActions({
   isGestor,
   assignees,
   stages,
+  onStageChange,
   onChanged,
 }: {
   conversation: ConversationRow;
@@ -24,6 +26,7 @@ export default function ConversationActions({
   isGestor: boolean;
   assignees: Assignee[];
   stages: StageRow[];
+  onStageChange: (conversationId: string, stageId: string) => void;
   // movedTo: nome do novo responsável, para a mensagem se o usuário perder o acesso.
   onChanged: (conversationId: string, movedTo?: string) => void;
 }) {
@@ -52,28 +55,6 @@ export default function ConversationActions({
     }
   }
 
-  const stage = stages.find((s) => s.id === conversation.stage_id) ?? null;
-
-  async function changeStage(stageId: string) {
-    if (!stageId || stageId === conversation.stage_id) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/conversations/${conversation.id}/stage`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage_id: stageId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Erro inesperado. Tente novamente.");
-      onChanged(conversation.id);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -85,28 +66,18 @@ export default function ConversationActions({
           assignees={assignees}
           onChanged={onChanged}
         />
-        {stages.length > 0 && (
-          <select
-            value={conversation.stage_id ?? ""}
-            disabled={busy}
-            onChange={(e) => changeStage(e.target.value)}
-            aria-label="Etapa da conversa"
-            title="Etapa do funil"
-            style={
-              stage
-                ? { borderColor: alpha(stage.color, 0.6), color: stage.color, backgroundColor: alpha(stage.color, 0.12) }
-                : undefined
-            }
-            className="rounded-full border border-cyber-line bg-cyber-bg px-3 py-1 text-xs font-bold outline-none disabled:opacity-60"
-          >
-            {!stage && <option value="">Sem etapa</option>}
-            {stages.map((s) => (
-              <option key={s.id} value={s.id} className="bg-cyber-bg text-cyber-white">
-                {s.name}
-              </option>
-            ))}
-          </select>
-        )}
+        <StageSelect
+          stages={stages}
+          stageId={conversation.stage_id}
+          disabled={busy}
+          onChange={(id) => onStageChange(conversation.id, id)}
+        />
+        <Link
+          href="/funil"
+          className="rounded-full border border-cyber-line px-3 py-1 text-xs text-cyber-white/70 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+        >
+          Ver no funil
+        </Link>
         <select
           value={conversation.status}
           disabled={busy}

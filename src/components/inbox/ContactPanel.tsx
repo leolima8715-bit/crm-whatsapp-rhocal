@@ -8,12 +8,13 @@ import {
   type Assignee,
   type ConversationRow,
   type SectorOption,
-  type Tag,
+  type StageRow,
   type TransferEntry,
 } from "@/lib/inbox-types";
 import { conversationSector } from "@/lib/sector-style";
 import ContactOwner from "./ContactOwner";
-import { NotesSection, TagsSection } from "./ContactExtras";
+import { NotesSection } from "./ContactExtras";
+import StageSelect from "./StageSelect";
 import { displayName, formatContactLabel, formatPhone, initials } from "@/lib/format";
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
@@ -256,10 +257,8 @@ export default function ContactPanel({
   sectors,
   onContactSaved,
   isGestor,
-  tags,
-  contactTagIds,
-  onTagsChange,
-  onTagCreated,
+  stages,
+  onStageChange,
   currentUserId,
   assignees,
   onOwnerChanged,
@@ -271,10 +270,8 @@ export default function ContactPanel({
   sectors: SectorOption[];
   onContactSaved: (contactId: string, fields: Partial<ContactFields>) => void;
   isGestor: boolean;
-  tags: Tag[];
-  contactTagIds: string[];
-  onTagsChange: (contactId: string, tagIds: string[]) => void;
-  onTagCreated: (tag: Tag) => void;
+  stages: StageRow[];
+  onStageChange: (conversationId: string, stageId: string) => void;
 }) {
   if (!conversation) return null;
 
@@ -317,19 +314,18 @@ export default function ContactPanel({
           onChanged={onOwnerChanged}
         />
         <ReadOnly label="Setor" value={sectorName} />
+        <div>
+          <dt className={labelCls}>Funil</dt>
+          <dd className="mt-1">
+            <StageSelect
+              variant="panel"
+              stages={stages}
+              stageId={conversation.stage_id}
+              onChange={(id) => onStageChange(conversation.id, id)}
+            />
+          </dd>
+        </div>
       </dl>
-
-      <div className="mt-6 border-t border-cyber-line pt-5">
-        <TagsSection
-          key={`tags-${conversation.contact_id}`}
-          contactId={conversation.contact_id}
-          tags={tags}
-          selectedIds={contactTagIds}
-          isGestor={isGestor}
-          onChange={(ids) => onTagsChange(conversation.contact_id, ids)}
-          onTagCreated={onTagCreated}
-        />
-      </div>
 
       <div className="mt-6 border-t border-cyber-line pt-5">
         <ContactForm

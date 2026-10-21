@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ownerNameOf, type Assignee, type ContactTagsMap, type ConversationRow, type SectorOption, type StageRow, type Tag } from "@/lib/inbox-types";
+import { ownerNameOf, type Assignee, type ConversationRow, type SectorOption, type StageRow } from "@/lib/inbox-types";
 import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import ConversationFilters from "./ConversationFilters";
-import TagChip from "./TagChip";
 import SectorTag from "./SectorTag";
 import { formatContactLabel, initials, previewLabel, relativeTime } from "@/lib/format";
 
@@ -16,7 +15,6 @@ export type Filters = {
   status: StatusFilter;
   assignee: string; // "" = todos
   instance: string; // "" = todos
-  tag: string; // "" = todas
   sector: string; // "" = todos, "none" = sem setor, senão id do setor
   stage: string; // "" = todas, senão id da etapa
 };
@@ -34,27 +32,11 @@ type Props = {
   isGestor: boolean;
   assignees: Assignee[];
   instances: { id: string; label: string }[];
-  tags: Tag[];
-  contactTags: ContactTagsMap;
   sectors: SectorOption[];
   sectorChips: SectorInfo[];
   stages: StageRow[];
   onNewConversation: () => void;
 };
-
-function ListTags({ tags, ids }: { tags: Tag[]; ids: string[] | undefined }) {
-  if (!ids?.length) return null;
-  const mine = ids.map((id) => tags.find((t) => t.id === id)).filter(Boolean) as Tag[];
-  if (mine.length === 0) return null;
-  return (
-    <div className="mt-1 flex items-center gap-1 overflow-hidden">
-      {mine.slice(0, 2).map((t) => (
-        <TagChip key={t.id} tag={t} small />
-      ))}
-      {mine.length > 2 && <span className="text-[9px] text-cyber-white/50">+{mine.length - 2}</span>}
-    </div>
-  );
-}
 
 export default function ConversationList({
   conversations,
@@ -69,8 +51,6 @@ export default function ConversationList({
   isGestor,
   assignees,
   instances,
-  tags,
-  contactTags,
   sectors,
   sectorChips,
   stages,
@@ -87,7 +67,6 @@ export default function ConversationList({
         isGestor={isGestor}
         assignees={assignees}
         instances={instances}
-        tags={tags}
         sectorChips={sectorChips}
         stages={stages}
         onNewConversation={onNewConversation}
@@ -107,6 +86,7 @@ export default function ConversationList({
           const sector = conversationSector(c, sectors);
           const label = formatContactLabel(c.contact, sector, ownerNameOf(c, assignees));
           const sc = sectorStyle(sector.color).stripe;
+          const stage = stages.find((s) => s.id === c.stage_id);
           const selected = selectedId === c.id;
           const hasSector = sector.id !== null;
           return (
@@ -162,10 +142,15 @@ export default function ConversationList({
                     </div>
                   </div>
                 </div>
-                <ListTags tags={tags} ids={contactTags[c.contact_id]} />
-                <p className="w-full truncate font-mono text-[10px] uppercase tracking-wider text-cyber-white/50">
-                  {c.instance?.label ?? "Sem número"}
-                </p>
+                <div className="flex w-full items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-cyber-white/50">
+                  <span className="truncate">{c.instance?.label ?? "Sem número"}</span>
+                  {stage && (
+                    <span className="flex min-w-0 shrink items-center gap-1 normal-case tracking-normal">
+                      <span aria-hidden style={{ backgroundColor: stage.color }} className="h-1.5 w-1.5 shrink-0 rounded-full" />
+                      <span className="truncate">{stage.name}</span>
+                    </span>
+                  )}
+                </div>
               </button>
               {!hasSector && isGestor && (
                 <Link

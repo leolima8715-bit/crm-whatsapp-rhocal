@@ -2,9 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/users";
-import type { ContactTagsMap } from "@/lib/inbox-types";
 import LogoutButton from "@/components/LogoutButton";
 import InboxShell from "@/components/inbox/InboxShell";
 
@@ -47,18 +45,6 @@ export default async function InboxPage({
       if (!conversations.some((c) => c.id === found.id)) conversations.push(found);
       initialSelectedId = found.id;
     }
-  }
-
-  // Tags dos contatos da lista numa única consulta (sem N+1).
-  const contactTags: ContactTagsMap = {};
-  const contactIds = Array.from(new Set(conversations.map((c) => c.contact_id)));
-  if (contactIds.length > 0) {
-    const { data: links } = await createAdminClient()
-      .from("contact_tags")
-      .select("contact_id, tag_id")
-      .in("contact_id", contactIds);
-    for (const l of links ?? []) (contactTags[l.contact_id] ??= []).push(l.tag_id);
-    for (const id of contactIds) contactTags[id] ??= [];
   }
 
   return (
@@ -120,7 +106,6 @@ export default async function InboxPage({
           currentUserId={user.id}
           currentRole={profile.role}
           currentUserName={profile.full_name}
-          initialContactTags={contactTags}
           initialSelectedId={initialSelectedId}
         />
       ) : (

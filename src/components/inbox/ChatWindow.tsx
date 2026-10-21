@@ -101,6 +101,7 @@ export default function ChatWindow({
   assignees,
   sectors,
   stages,
+  onStageChange,
   onChanged,
   quickReplies,
   currentUserName,
@@ -113,6 +114,7 @@ export default function ChatWindow({
   assignees: Assignee[];
   sectors: SectorOption[];
   stages: StageRow[];
+  onStageChange: (conversationId: string, stageId: string) => void;
   onChanged: (conversationId: string, movedTo?: string) => void;
   quickReplies: QuickReply[];
   currentUserName: string;
@@ -501,6 +503,7 @@ export default function ChatWindow({
           isGestor={isGestor}
           assignees={assignees}
           stages={stages}
+          onStageChange={onStageChange}
           onChanged={onChanged}
         />
       </header>
