@@ -15,9 +15,9 @@ const roleLabel: Record<Role, string> = {
 };
 
 const roleCls: Record<Role, string> = {
-  gestor: "border-cyber-cyan/50 text-cyber-cyan",
-  comercial: "border-cyber-amber/50 text-cyber-amber",
-  compras: "border-cyber-orange/50 text-cyber-orange",
+  gestor: "border-accent/50 text-accent-text",
+  comercial: "border-warn/50 text-warn",
+  compras: "border-danger/50 text-danger",
 };
 
 async function api(url: string, method: string, body?: unknown) {
@@ -92,25 +92,25 @@ export default function UsuariosManager({
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold">Usuários</h1>
-          <p className="text-sm text-cyber-white/60">
+          <p className="text-sm text-secondary">
             Crie logins, defina papéis e setores e controle quem tem acesso.
           </p>
         </div>
         <button
           onClick={() => open({ kind: "new" })}
-          className="flex items-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90"
+          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover"
         >
           <Plus size={16} /> Novo usuário
         </button>
       </div>
 
       {notice && (
-        <p className="mb-4 rounded-lg border border-cyber-cyan/40 px-4 py-2 text-sm text-cyber-cyan">
+        <p className="mb-4 rounded-lg border border-accent/40 px-4 py-2 text-sm text-accent-text">
           {notice}
         </p>
       )}
       {error && !modal && (
-        <p className="mb-4 rounded-lg border border-cyber-orange/40 px-4 py-2 text-sm text-cyber-orange">
+        <p className="mb-4 rounded-lg border border-danger/40 px-4 py-2 text-sm text-danger">
           {error}
         </p>
       )}
@@ -122,7 +122,7 @@ export default function UsuariosManager({
           return (
             <li
               key={u.id}
-              className={`rounded-lg border border-cyber-line bg-cyber-panel p-4 ${
+              className={`rounded-lg border border-subtle bg-panel p-4 ${
                 u.active ? "" : "opacity-60"
               }`}
             >
@@ -130,21 +130,21 @@ export default function UsuariosManager({
                 <div className="min-w-0">
                   <p className="truncate font-bold">
                     {u.full_name}
-                    {self && <span className="ml-2 text-xs font-normal text-cyber-white/50">(você)</span>}
+                    {self && <span className="ml-2 text-xs font-normal text-secondary">(você)</span>}
                   </p>
-                  <p className="truncate font-mono text-xs text-cyber-white/60">{u.email ?? "—"}</p>
+                  <p className="truncate text-xs text-secondary">{u.email ?? "—"}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${roleCls[u.role]}`}
+                    className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest ${roleCls[u.role]}`}
                   >
                     {roleLabel[u.role]}
                   </span>
                   <span
-                    className={`rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${
+                    className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest ${
                       u.active
-                        ? "border-cyber-cyan/50 text-cyber-cyan"
-                        : "border-cyber-line text-cyber-white/50"
+                        ? "border-accent/50 text-accent-text"
+                        : "border-subtle text-secondary"
                     }`}
                   >
                     {u.active ? "Ativo" : "Desativado"}
@@ -152,7 +152,7 @@ export default function UsuariosManager({
                 </div>
               </div>
 
-              <p className="mt-2 text-xs text-cyber-white/60">
+              <p className="mt-2 text-xs text-secondary">
                 Setores:{" "}
                 {sectorNames(u.sector_ids).join(", ") || "nenhum"}
               </p>
@@ -161,14 +161,14 @@ export default function UsuariosManager({
                 <button
                   disabled={busy}
                   onClick={() => open({ kind: "edit", user: u })}
-                  className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary transition hover:border-accent hover:text-accent-text disabled:opacity-50"
                 >
                   <Pencil size={14} /> Editar
                 </button>
                 <button
                   disabled={busy}
                   onClick={() => open({ kind: "password", user: u })}
-                  className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-amber hover:text-cyber-amber disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary transition hover:border-warn hover:text-warn disabled:opacity-50"
                 >
                   <KeyRound size={14} /> Redefinir senha
                 </button>
@@ -176,12 +176,12 @@ export default function UsuariosManager({
                   <button
                     disabled={busy}
                     onClick={() => toggleActive(u)}
-                    className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-orange hover:text-cyber-orange disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary transition hover:border-danger hover:text-danger disabled:opacity-50"
                   >
                     <Power size={14} /> {u.active ? "Desativar" : "Reativar"}
                   </button>
                 )}
-                {busy && <Loader2 size={16} className="animate-spin self-center text-cyber-cyan" />}
+                {busy && <Loader2 size={16} className="animate-spin self-center text-accent-text" />}
               </div>
             </li>
           );
@@ -231,7 +231,7 @@ export default function UsuariosManager({
 }
 
 const inputCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan";
+  "w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent";
 
 function UserFormModal({
   title,
@@ -301,7 +301,7 @@ function UserFormModal({
     <Modal title={title} onClose={() => !saving && onClose()}>
       <form onSubmit={submit} className="space-y-4">
         <label className="block text-sm">
-          <span className="mb-1 block text-cyber-white/70">Nome completo</span>
+          <span className="mb-1 block text-secondary">Nome completo</span>
           <input
             autoFocus
             value={fullName}
@@ -312,7 +312,7 @@ function UserFormModal({
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-cyber-white/70">E-mail</span>
+          <span className="mb-1 block text-secondary">E-mail</span>
           <input
             type="email"
             value={email}
@@ -323,7 +323,7 @@ function UserFormModal({
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-cyber-white/70">Papel</span>
+          <span className="mb-1 block text-secondary">Papel</span>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
@@ -335,16 +335,16 @@ function UserFormModal({
             <option value="compras">Compras</option>
           </select>
           {isSelf && (
-            <span className="mt-1 block text-xs text-cyber-white/50">
+            <span className="mt-1 block text-xs text-secondary">
               Você não pode alterar o seu próprio papel.
             </span>
           )}
         </label>
 
         <fieldset className="text-sm">
-          <legend className="mb-1 text-cyber-white/70">Setores</legend>
+          <legend className="mb-1 text-secondary">Setores</legend>
           {sectors.length === 0 ? (
-            <p className="text-xs text-cyber-white/50">Nenhum setor cadastrado.</p>
+            <p className="text-xs text-secondary">Nenhum setor cadastrado.</p>
           ) : (
             <div className="space-y-1">
               {sectors.map((s) => (
@@ -353,7 +353,7 @@ function UserFormModal({
                     type="checkbox"
                     checked={sectorIds.includes(s.id)}
                     onChange={() => toggleSector(s.id)}
-                    className="accent-cyber-cyan"
+                    className="accent-accent"
                   />
                   {s.name}
                 </label>
@@ -364,7 +364,7 @@ function UserFormModal({
 
         {!editing && (
           <div className="text-sm">
-            <span className="mb-1 block text-cyber-white/70">Senha inicial (mínimo 8 caracteres)</span>
+            <span className="mb-1 block text-secondary">Senha inicial (mínimo 8 caracteres)</span>
             <div className="flex gap-2">
               <input
                 type={showPw ? "text" : "password"}
@@ -380,29 +380,29 @@ function UserFormModal({
                   setPassword(generatePassword());
                   setShowPw(true);
                 }}
-                className="shrink-0 rounded-lg border border-cyber-line px-3 text-xs text-cyber-cyan hover:border-cyber-cyan"
+                className="shrink-0 rounded-lg border border-subtle px-3 text-xs text-accent-text hover:border-accent"
               >
                 Gerar
               </button>
             </div>
-            <label className="mt-2 flex items-center gap-2 text-xs text-cyber-white/60">
+            <label className="mt-2 flex items-center gap-2 text-xs text-secondary">
               <input
                 type="checkbox"
                 checked={showPw}
                 onChange={(e) => setShowPw(e.target.checked)}
-                className="accent-cyber-cyan"
+                className="accent-accent"
               />
               Mostrar senha
             </label>
           </div>
         )}
 
-        {error && <p className="text-sm text-cyber-orange">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <button
           type="submit"
           disabled={saving || !fullName.trim() || (!editing && !email.trim())}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover disabled:opacity-50"
         >
           {saving ? (
             <>
@@ -455,7 +455,7 @@ function PasswordModal({
     <Modal title={`Redefinir senha · ${user.full_name}`} onClose={() => !saving && onClose()}>
       <form onSubmit={submit} className="space-y-4">
         <div className="text-sm">
-          <span className="mb-1 block text-cyber-white/70">Nova senha (mínimo 8 caracteres)</span>
+          <span className="mb-1 block text-secondary">Nova senha (mínimo 8 caracteres)</span>
           <div className="flex gap-2">
             <input
               autoFocus
@@ -472,28 +472,28 @@ function PasswordModal({
                 setPassword(generatePassword());
                 setShowPw(true);
               }}
-              className="shrink-0 rounded-lg border border-cyber-line px-3 text-xs text-cyber-cyan hover:border-cyber-cyan"
+              className="shrink-0 rounded-lg border border-subtle px-3 text-xs text-accent-text hover:border-accent"
             >
               Gerar
             </button>
           </div>
-          <label className="mt-2 flex items-center gap-2 text-xs text-cyber-white/60">
+          <label className="mt-2 flex items-center gap-2 text-xs text-secondary">
             <input
               type="checkbox"
               checked={showPw}
               onChange={(e) => setShowPw(e.target.checked)}
-              className="accent-cyber-cyan"
+              className="accent-accent"
             />
             Mostrar senha
           </label>
         </div>
 
-        {error && <p className="text-sm text-cyber-orange">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <button
           type="submit"
           disabled={saving || !password}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover disabled:opacity-50"
         >
           {saving ? (
             <>
@@ -519,13 +519,13 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-lg border border-cyber-line bg-cyber-panel p-5">
+      <div className="w-full max-w-md rounded-lg border border-subtle bg-panel p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="truncate font-bold">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="text-cyber-white/60 hover:text-cyber-orange"
+            className="text-secondary hover:text-danger"
           >
             <X size={18} />
           </button>

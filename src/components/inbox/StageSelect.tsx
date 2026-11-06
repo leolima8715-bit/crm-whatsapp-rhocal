@@ -1,7 +1,7 @@
 "use client";
 
 import type { StageRow } from "@/lib/inbox-types";
-import { alpha } from "@/lib/sector-style";
+import { alpha, readableText } from "@/lib/sector-style";
 
 // Etapa do funil: etiqueta (bolinha + nome) e select para trocar sem sair da conversa.
 export default function StageSelect({
@@ -35,12 +35,12 @@ export default function StageSelect({
         disabled={disabled}
         onChange={(e) => e.target.value && onChange(e.target.value)}
         aria-label="Funil: etapa da conversa"
-        style={{ color }}
+        style={{ color: readableText(color) }}
         className="min-w-0 flex-1 cursor-pointer bg-transparent font-bold outline-none"
       >
         {!stage && <option value="">Sem etapa</option>}
         {stages.map((s) => (
-          <option key={s.id} value={s.id} className="bg-cyber-bg text-cyber-white">
+          <option key={s.id} value={s.id} className="bg-app text-primary">
             {s.name}
           </option>
         ))}

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { isUuid } from "@/lib/users";
+import ThemeToggle from "@/components/ThemeToggle";
 import LogoutButton from "@/components/LogoutButton";
 import InboxShell from "@/components/inbox/InboxShell";
 
@@ -49,9 +50,9 @@ export default async function InboxPage({
 
   return (
     <main className="flex h-screen flex-col">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-cyber-line bg-cyber-panel px-5">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-subtle bg-panel px-5">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-cyber-cyan">
+          <p className="text-[10px] uppercase tracking-widest text-accent-text">
             CRM WhatsApp · RHOCAL
           </p>
           <p className="text-sm font-bold">
@@ -66,13 +67,13 @@ export default async function InboxPage({
             <>
               <Link
                 href="/numeros"
-                className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+                className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
               >
                 Números
               </Link>
               <Link
                 href="/usuarios"
-                className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+                className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
               >
                 Usuários
               </Link>
@@ -80,22 +81,23 @@ export default async function InboxPage({
           )}
           <Link
             href="/funil"
-            className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+            className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
           >
             Funil
           </Link>
           <Link
             href="/respostas-rapidas"
-            className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+            className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
           >
             Respostas rápidas
           </Link>
           <Link
             href="/conta"
-            className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+            className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
           >
             Minha conta
           </Link>
+          <ThemeToggle />
           <LogoutButton />
         </div>
       </header>
@@ -109,7 +111,7 @@ export default async function InboxPage({
           initialSelectedId={initialSelectedId}
         />
       ) : (
-        <p className="p-8 text-cyber-orange">
+        <p className="p-8 text-danger">
           Seu usuário ainda não tem perfil. Peça ao gestor para liberar o acesso.
         </p>
       )}

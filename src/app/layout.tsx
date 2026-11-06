@@ -1,22 +1,13 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
-
-const grotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-});
-
-const mono = Space_Mono({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-space-mono",
-});
 
 export const metadata: Metadata = {
   title: "CRM WhatsApp | RHOCAL",
   description: "Atendimento e gestão de contatos via WhatsApp",
 };
+
+// Aplica o tema salvo antes da hidratação (evita piscar). Padrão: escuro.
+const themeScript = `try{var t=localStorage.getItem("theme");document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}`;
 
 export default function RootLayout({
   children,
@@ -24,10 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${grotesk.variable} ${mono.variable}`}>
-      <body className="bg-cyber-bg font-sans text-cyber-white antialiased">
-        {children}
-      </body>
+    <html lang="pt-BR" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="bg-app font-sans text-primary antialiased">{children}</body>
     </html>
   );
 }

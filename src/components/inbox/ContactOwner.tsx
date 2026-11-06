@@ -46,7 +46,7 @@ export default function ContactOwner({
         setNotice(null);
         setTransferOpen(true);
       }}
-      className="flex items-center gap-1.5 rounded-lg border border-cyber-line px-3 py-1.5 text-xs text-cyber-white/80 hover:border-cyber-cyan hover:text-cyber-cyan"
+      className="flex items-center gap-1.5 rounded-lg border border-subtle px-3 py-1.5 text-xs text-primary hover:border-accent hover:text-accent-text"
     >
       <Send size={12} /> Transferir contato
     </button>
@@ -72,8 +72,8 @@ export default function ContactOwner({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {transferBtn}
         </div>
-        {error && <p className="text-xs text-cyber-orange">{error}</p>}
-        {notice && <p className="text-xs text-cyber-cyan">{notice}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
+        {notice && <p className="text-xs text-accent-text">{notice}</p>}
         {modal}
       </>
     );
@@ -81,14 +81,14 @@ export default function ContactOwner({
 
   return (
     <div>
-      <p className="text-xs text-cyber-white/50">Vale para todas as conversas deste contato.</p>
+      <p className="text-xs text-secondary">Vale para todas as conversas deste contato.</p>
       {transferBtn && (
         <div className="mt-2 flex flex-wrap gap-2">
           {transferBtn}
         </div>
       )}
-      {error && <p className="mt-2 text-xs text-cyber-orange">{error}</p>}
-      {notice && <p className="mt-2 text-xs text-cyber-cyan">{notice}</p>}
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+      {notice && <p className="mt-2 text-xs text-accent-text">{notice}</p>}
       {modal}
     </div>
   );
@@ -144,31 +144,31 @@ function TransferModal({
   }
 
   const inputCls =
-    "w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan";
+    "w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 text-left">
-      <div className="w-full max-w-md rounded-lg border border-cyber-line bg-cyber-panel p-5">
+      <div className="w-full max-w-md rounded-lg border border-subtle bg-panel p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-bold">Transferir contato</h2>
           <button
             onClick={onClose}
             disabled={saving}
             aria-label="Fechar"
-            className="text-cyber-white/60 hover:text-cyber-orange disabled:opacity-40"
+            className="text-secondary hover:text-danger disabled:opacity-40"
           >
             <X size={18} />
           </button>
         </div>
 
         {success ? (
-          <p className="rounded-lg border border-cyber-cyan/40 px-4 py-3 text-sm text-cyber-cyan">
+          <p className="rounded-lg border border-accent/40 px-4 py-3 text-sm text-accent-text">
             Contato transferido com sucesso.
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <div className="text-sm">
-              <span className="mb-1 block text-cyber-white/70">Novo responsável</span>
+              <span className="mb-1 block text-secondary">Novo responsável</span>
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -190,13 +190,13 @@ function TransferModal({
                   </option>
                 ))}
               </select>
-              <span className="mt-1 block text-xs text-cyber-white/50">
+              <span className="mt-1 block text-xs text-secondary">
                 Vale para todas as conversas deste contato.
               </span>
             </div>
 
             <label className="block text-sm">
-              <span className="mb-1 block text-cyber-white/70">Observação (opcional)</span>
+              <span className="mb-1 block text-secondary">Observação (opcional)</span>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -204,17 +204,17 @@ function TransferModal({
                 rows={3}
                 className={`${inputCls} resize-none`}
               />
-              <span className="mt-1 block text-right font-mono text-[10px] text-cyber-white/40">
+              <span className="mt-1 block text-right text-[10px] text-secondary">
                 {note.length}/500
               </span>
             </label>
 
-            {error && <p className="text-sm text-cyber-orange">{error}</p>}
+            {error && <p className="text-sm text-danger">{error}</p>}
 
             <button
               type="submit"
               disabled={saving || nothingChosen}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover disabled:opacity-50"
             >
               {saving ? (
                 <>

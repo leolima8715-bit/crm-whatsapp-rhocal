@@ -2,11 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Tokens de cor (canais RGB, para permitir opacidade: bg-app/80). Tema escuro é o padrão. */
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
+  --c-app: 17 27 33; /* #111B21 fundo geral / lista */
+  --c-panel: 32 44 51; /* #202C33 painéis, cabeçalhos, barra de digitação */
+  --c-panel-hover: 42 57 66; /* #2A3942 */
+  --c-chat: 11 20 26; /* #0B141A área da conversa */
+  --c-bubble-in: 32 44 51; /* #202C33 */
+  --c-bubble-out: 0 92 75; /* #005C4B */
+  --c-bubble-text: 233 237 239; /* #E9EDEF */
+  --c-border: 34 45 52; /* #222D34 */
+  --c-text: 233 237 239; /* #E9EDEF */
+  --c-text-secondary: 134 150 160; /* #8696A0 */
+  --c-accent: 0 168 132; /* #00A884 */
+  --c-accent-hover: 6 207 156; /* #06CF9C */
+  --c-accent-text: 0 168 132; /* acento usado como texto/link */
+  --c-on-accent: 255 255 255;
+  --c-danger: 234 75 75; /* #EA4B4B */
+  --c-warn: 255 210 121; /* aviso/âmbar legível */
+  --c-read: 83 189 235; /* #53BDEB vistos */
+  --c-system-pill: 24 34 41; /* #182229 */
+  --scroll-thumb: #374248;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --c-app: 255 255 255; /* #FFFFFF */
+  --c-panel: 240 242 245; /* #F0F2F5 */
+  --c-panel-hover: 245 246 246; /* #F5F6F6 */
+  --c-chat: 239 234 226; /* #EFEAE2 */
+  --c-bubble-in: 255 255 255;
+  --c-bubble-out: 217 253 211; /* #D9FDD3 */
+  --c-bubble-text: 17 27 33; /* #111B21 */
+  --c-border: 233 237 239; /* #E9EDEF */
+  --c-text: 17 27 33; /* #111B21 */
+  --c-text-secondary: 102 119 129; /* #667781 */
+  --c-accent: 0 168 132;
+  --c-accent-hover: 0 143 112;
+  --c-accent-text: 0 128 105; /* #008069: contraste AA sobre branco */
+  --c-on-accent: 255 255 255;
+  --c-danger: 207 40 40; /* vermelho com contraste AA sobre branco */
+  --c-warn: 150 90 0;
+  --c-read: 83 189 235;
+  --c-system-pill: 255 255 255;
+  --scroll-thumb: #c1c7cb;
 }
 
 html,
 body {
   height: 100%;
+}
+
+/* Scrollbars finas e discretas */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Fundo da conversa: padrão sutil e discreto */
+.chat-bg {
+  background-color: rgb(var(--c-chat));
+  background-image: radial-gradient(rgb(var(--c-text) / 0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Balão com rabinho discreto */
+.bubble-tail-in {
+  border-top-left-radius: 2px;
+}
+.bubble-tail-out {
+  border-top-right-radius: 2px;
 }

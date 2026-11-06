@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ownerNameOf, type Assignee, type ConversationRow, type SectorOption, type StageRow } from "@/lib/inbox-types";
-import { alpha, conversationSector, sectorStyle, type SectorInfo } from "@/lib/sector-style";
+import { alpha, conversationSector, inkOn, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import ConversationFilters from "./ConversationFilters";
 import SectorTag from "./SectorTag";
 import { formatContactLabel, initials, previewLabel, relativeTime } from "@/lib/format";
@@ -57,7 +57,7 @@ export default function ConversationList({
   onNewConversation,
 }: Props) {
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-r border-cyber-line bg-cyber-panel">
+    <aside className="flex w-80 shrink-0 flex-col border-r border-subtle bg-app">
       <ConversationFilters
         search={search}
         onSearch={onSearch}
@@ -74,12 +74,12 @@ export default function ConversationList({
 
       <ul className="min-h-0 flex-1 overflow-y-auto">
         {totalCount === 0 && (
-          <li className="p-4 text-sm text-cyber-white/50">
+          <li className="p-4 text-sm text-secondary">
             Nenhuma conversa ainda. Quando chegar uma mensagem, ela aparece aqui.
           </li>
         )}
         {totalCount > 0 && conversations.length === 0 && (
-          <li className="p-4 text-sm text-cyber-white/50">Nenhuma conversa encontrada.</li>
+          <li className="p-4 text-sm text-secondary">Nenhuma conversa encontrada.</li>
         )}
 
         {conversations.map((c) => {
@@ -95,12 +95,18 @@ export default function ConversationList({
                 onClick={() => onSelect(c.id)}
                 style={
                   {
-                    "--sec-bg": alpha(sc, selected ? 0.26 : 0.14),
+                    "--sec-bg": alpha(sc, selected ? 0.2 : 0.14),
                     "--sec-hover": alpha(sc, 0.2),
                     borderColor: selected ? sc : alpha(sc, 0.35),
                     borderWidth: selected ? 2 : 1,
                     borderLeftWidth: 6,
                     borderLeftColor: sc,
+                    ...(selected
+                      ? {
+                          backgroundColor: "rgb(var(--c-panel-hover))",
+                          backgroundImage: `linear-gradient(${alpha(sc, 0.2)}, ${alpha(sc, 0.2)})`,
+                        }
+                      : {}),
                   } as React.CSSProperties
                 }
                 className={`flex w-full flex-col gap-1 rounded-lg border-solid bg-[var(--sec-bg)] px-3 py-2 text-left transition ${
@@ -109,12 +115,12 @@ export default function ConversationList({
               >
                 <div className="flex w-full items-center justify-between gap-2">
                   <SectorTag sector={sector} className="max-w-[70%]" />
-                  <span className="shrink-0 text-xs text-cyber-white/60">
+                  <span className="shrink-0 text-xs text-secondary">
                     {relativeTime(c.last_message_at)}
                   </span>
                 </div>
                 <div className="flex w-full items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-accent-text">
                     {initials(label)}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -126,15 +132,15 @@ export default function ConversationList({
                       {label}
                     </span>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-xs text-cyber-white/70">
+                      <span className="truncate text-xs text-secondary">
                         {c.last_message_at || c.last_message_preview
                           ? previewLabel(c.last_message_preview)
                           : ""}
                       </span>
                       {c.unread_count > 0 && (
                         <span
-                          style={hasSector ? { backgroundColor: sc, color: "#07090F" } : undefined}
-                          className="shrink-0 rounded-full bg-cyber-orange px-2 py-0.5 text-xs font-bold text-cyber-bg"
+                          style={hasSector ? { backgroundColor: sc, color: inkOn(sc) } : undefined}
+                          className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-on-accent"
                         >
                           {c.unread_count}
                         </span>
@@ -142,7 +148,7 @@ export default function ConversationList({
                     </div>
                   </div>
                 </div>
-                <div className="flex w-full items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-cyber-white/50">
+                <div className="flex w-full items-center justify-between gap-2 text-[10px] uppercase tracking-wider text-secondary">
                   <span className="truncate">{c.instance?.label ?? "Sem número"}</span>
                   {stage && (
                     <span className="flex min-w-0 shrink items-center gap-1 normal-case tracking-normal">
@@ -155,7 +161,7 @@ export default function ConversationList({
               {!hasSector && isGestor && (
                 <Link
                   href="/numeros"
-                  className="mt-0.5 block px-3 font-mono text-[10px] uppercase tracking-wider text-cyber-cyan hover:underline"
+                  className="mt-0.5 block px-3 text-[10px] uppercase tracking-wider text-accent-text hover:underline"
                 >
                   Definir setor
                 </Link>

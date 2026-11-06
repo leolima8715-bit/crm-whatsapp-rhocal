@@ -6,7 +6,7 @@ function textOn(hex: string) {
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  return (r * 299 + g * 587 + b * 114) / 1000 > 140 ? "#07090F" : "#F0F4FF";
+  return (r * 299 + g * 587 + b * 114) / 1000 > 140 ? "#111B21" : "#FFFFFF";
 }
 
 export default function TagChip({

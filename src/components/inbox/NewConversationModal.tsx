@@ -13,7 +13,7 @@ type UsableInstance = {
 };
 
 const inputCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan";
+  "w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent";
 
 export default function NewConversationModal({
   onClose,
@@ -71,14 +71,14 @@ export default function NewConversationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-lg border border-cyber-line bg-cyber-panel p-5">
+      <div className="w-full max-w-md rounded-lg border border-subtle bg-panel p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-bold">Nova conversa</h2>
           <button
             onClick={onClose}
             disabled={sending}
             aria-label="Fechar"
-            className="text-cyber-white/60 hover:text-cyber-orange disabled:opacity-40"
+            className="text-secondary hover:text-danger disabled:opacity-40"
           >
             <X size={18} />
           </button>
@@ -86,7 +86,7 @@ export default function NewConversationModal({
 
         <form onSubmit={submit} className="space-y-4">
           <label className="block text-sm">
-            <span className="mb-1 block text-cyber-white/70">Telefone *</span>
+            <span className="mb-1 block text-secondary">Telefone *</span>
             <input
               autoFocus
               type="tel"
@@ -97,14 +97,14 @@ export default function NewConversationModal({
               className={inputCls}
             />
             {phone && !phoneOk && (
-              <span className="mt-1 block text-xs text-cyber-orange">
+              <span className="mt-1 block text-xs text-danger">
                 Informe DDD + número (com ou sem +55).
               </span>
             )}
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-cyber-white/70">Nome do contato (recomendado)</span>
+            <span className="mb-1 block text-secondary">Nome do contato (recomendado)</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -114,13 +114,13 @@ export default function NewConversationModal({
           </label>
 
           <div className="text-sm">
-            <span className="mb-1 block text-cyber-white/70">Número de envio *</span>
+            <span className="mb-1 block text-secondary">Número de envio *</span>
             {instances === null ? (
-              <p className="flex items-center gap-2 text-xs text-cyber-white/50">
+              <p className="flex items-center gap-2 text-xs text-secondary">
                 <Loader2 size={12} className="animate-spin" /> Carregando...
               </p>
             ) : instances.length === 0 ? (
-              <p className="text-xs text-[#FEB23D]">Nenhum número conectado disponível para você.</p>
+              <p className="text-xs text-warn">Nenhum número conectado disponível para você.</p>
             ) : (
               <div role="radiogroup" aria-label="Número de envio" className="space-y-1.5">
                 {instances.map((i) => {
@@ -135,16 +135,16 @@ export default function NewConversationModal({
                       onClick={() => setInstanceId(i.id)}
                       style={active ? { borderColor: st.stripe, backgroundColor: st.bg } : undefined}
                       className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
-                        active ? "" : "border-cyber-line hover:border-cyber-white/30"
+                        active ? "" : "border-subtle hover:border-secondary/50"
                       }`}
                     >
                       <span
                         aria-hidden
                         style={{ backgroundColor: st.stripe }}
-                        className="h-3 w-3 shrink-0 rounded-full border border-cyber-white/30"
+                        className="h-3 w-3 shrink-0 rounded-full border border-secondary/50"
                       />
                       <span className="min-w-0 flex-1 truncate">{i.label}</span>
-                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-cyber-white/60">
+                      <span className="shrink-0 text-[10px] uppercase tracking-wider text-secondary">
                         {i.sector?.name ?? "Sem setor"}
                       </span>
                     </button>
@@ -155,7 +155,7 @@ export default function NewConversationModal({
           </div>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-cyber-white/70">Primeira mensagem *</span>
+            <span className="mb-1 block text-secondary">Primeira mensagem *</span>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -165,17 +165,17 @@ export default function NewConversationModal({
             />
           </label>
 
-          <p className="text-xs text-cyber-white/50">
+          <p className="text-xs text-secondary">
             Envie só para quem conhece a empresa. Muitas mensagens para desconhecidos podem bloquear o
             número.
           </p>
 
-          {error && <p className="text-sm text-cyber-orange">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
 
           <button
             type="submit"
             disabled={!canSend}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover disabled:opacity-50"
           >
             {sending ? (
               <>

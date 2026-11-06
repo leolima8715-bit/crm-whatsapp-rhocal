@@ -19,9 +19,9 @@ import { displayName, formatContactLabel, formatPhone, initials } from "@/lib/fo
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
 
-const labelCls = "font-mono text-xs uppercase tracking-widest text-cyber-cyan";
+const labelCls = "text-xs uppercase tracking-widest text-accent-text";
 const inputCls =
-  "mt-1 w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-1.5 text-sm outline-none focus:border-cyber-cyan";
+  "mt-1 w-full rounded-lg border border-subtle bg-app px-3 py-1.5 text-sm outline-none focus:border-accent";
 
 function ReadOnly({ label, value }: { label: string; value: string }) {
   return (
@@ -173,19 +173,19 @@ function ContactForm({
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-xs text-cyber-white/50">
+          <span className="mt-1 block text-xs text-secondary">
             Vale para todas as conversas deste contato.
           </span>
         </label>
       )}
 
-      {error && <p className="text-xs text-cyber-orange">{error}</p>}
-      {saved && <p className="text-xs text-cyber-cyan">Contato salvo.</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
+      {saved && <p className="text-xs text-accent-text">Contato salvo.</p>}
 
       <button
         type="submit"
         disabled={saving}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg hover:opacity-90 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent hover:bg-accent-hover disabled:opacity-50"
       >
         {saving ? (
           <>
@@ -216,36 +216,36 @@ function TransferHistory({ conversation }: { conversation: ConversationRow }) {
     };
   }, [conversation.id, conversation.assigned_to, conversation.sector_id]);
 
-  if (failed) return <p className="text-xs text-cyber-orange">Não foi possível carregar o histórico.</p>;
+  if (failed) return <p className="text-xs text-danger">Não foi possível carregar o histórico.</p>;
   if (!items) {
     return (
-      <p className="flex items-center gap-2 text-xs text-cyber-white/50">
+      <p className="flex items-center gap-2 text-xs text-secondary">
         <Loader2 size={12} className="animate-spin" /> Carregando...
       </p>
     );
   }
   if (items.length === 0) {
-    return <p className="text-xs text-cyber-white/50">Nenhuma transferência registrada.</p>;
+    return <p className="text-xs text-secondary">Nenhuma transferência registrada.</p>;
   }
 
   return (
-    <ol className="space-y-3 border-l border-cyber-line pl-3">
+    <ol className="space-y-3 border-l border-subtle pl-3">
       {items.map((t) => (
         <li key={t.id} className="relative text-xs">
-          <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-cyber-cyan" />
-          <p className="font-mono text-[10px] text-cyber-white/40">{dateTime(t.created_at)}</p>
+          <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-accent" />
+          <p className="text-[10px] text-secondary">{dateTime(t.created_at)}</p>
           <p>
-            <span className="text-cyber-white/60">{t.from_name ?? "Sem responsável"}</span>
+            <span className="text-secondary">{t.from_name ?? "Sem responsável"}</span>
             {" → "}
             <span className="font-semibold">{t.to_name ?? "Sem responsável"}</span>
           </p>
           {(t.from_sector || t.to_sector) && (
-            <p className="text-cyber-white/60">
+            <p className="text-secondary">
               Setor: {t.from_sector ?? "—"} → {t.to_sector ?? "—"}
             </p>
           )}
-          {t.note && <p className="italic text-cyber-white/70">“{t.note}”</p>}
-          <p className="text-cyber-white/40">por {t.by_name ?? "—"}</p>
+          {t.note && <p className="italic text-secondary">“{t.note}”</p>}
+          <p className="text-secondary">por {t.by_name ?? "—"}</p>
         </li>
       ))}
     </ol>
@@ -289,9 +289,9 @@ export default function ContactPanel({
   const sectorName = conversationSector(conversation, sectors).name;
 
   return (
-    <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-cyber-line bg-cyber-panel p-5 xl:flex">
+    <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-subtle bg-panel p-5 xl:flex">
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-xl font-bold text-cyber-cyan">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/15 text-xl font-bold text-accent-text">
           {initials(name)}
         </div>
         <h3 title={label} className="mt-3 w-full truncate text-base font-bold">
@@ -327,7 +327,7 @@ export default function ContactPanel({
         </div>
       </dl>
 
-      <div className="mt-6 border-t border-cyber-line pt-5">
+      <div className="mt-6 border-t border-subtle pt-5">
         <ContactForm
           key={conversation.contact_id}
           conversation={conversation}
@@ -338,12 +338,12 @@ export default function ContactPanel({
         />
       </div>
 
-      <div className="mt-6 border-t border-cyber-line pt-5">
+      <div className="mt-6 border-t border-subtle pt-5">
         <h4 className={`${labelCls} mb-3`}>Histórico de transferências</h4>
         <TransferHistory key={conversation.id} conversation={conversation} />
       </div>
 
-      <div className="mt-6 border-t border-cyber-line pt-5">
+      <div className="mt-6 border-t border-subtle pt-5">
         <NotesSection key={`notes-${conversation.contact_id}`} contactId={conversation.contact_id} />
       </div>
     </aside>

@@ -1,6 +1,6 @@
 import type { ConversationRow, SectorOption } from "@/lib/inbox-types";
 
-export const NO_SECTOR_COLOR = "#1A2233";
+export const NO_SECTOR_COLOR = "#8A93A6"; // cinza neutro, funciona nos dois temas
 export const NO_SECTOR_NAME = "SEM SETOR";
 export const NO_SECTOR_ID = "none";
 
@@ -19,7 +19,9 @@ export const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
 
 export type SectorInfo = { id: string | null; name: string; color: string };
 
-const PANEL_BG = "#0D111C"; // cyber-panel: fundo sobre o qual a etiqueta é lida
+const DARK_BG = "#111B21"; // fundo do tema escuro (bg-app)
+const LIGHT_BG = "#FFFFFF"; // fundo do tema claro (bg-app)
+const INK = "#111B21"; // texto escuro sobre cores sólidas
 const MIN_CONTRAST = 4.5;
 
 function rgb(hex: string): [number, number, number] {
@@ -40,6 +42,26 @@ function contrast(a: string, b: string) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+function darken(hex: string, amount: number) {
+  const [r, g, b] = rgb(hex).map((v) => Math.round(v * (1 - amount)));
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+// Texto (preto-azulado ou branco) com melhor contraste sobre uma cor sólida.
+export function inkOn(hex: string) {
+  return contrast(hex, INK) >= contrast(hex, "#FFFFFF") ? INK : "#FFFFFF";
+}
+
+// Cor de texto legível (AA) com a cor dada nos dois temas: clareia no escuro, escurece no claro.
+export function readableText(color: string | null | undefined) {
+  const base = normalizeColor(color);
+  let dark = base;
+  for (let i = 1; contrast(dark, DARK_BG) < MIN_CONTRAST && i <= 20; i++) dark = lighten(base, i * 0.05);
+  let light = base;
+  for (let i = 1; contrast(light, LIGHT_BG) < MIN_CONTRAST && i <= 20; i++) light = darken(base, i * 0.05);
+  return `light-dark(${light}, ${dark})`;
+}
+
 function lighten(hex: string, amount: number) {
   const [r, g, b] = rgb(hex).map((v) => Math.round(v + (255 - v) * amount));
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
@@ -58,16 +80,10 @@ export function normalizeColor(color: string | null | undefined) {
 export function sectorStyle(color: string | null | undefined) {
   const base = normalizeColor(color);
 
-  // Clareia o texto até ter contraste legível sobre o fundo escuro.
-  let text = base;
-  for (let i = 1; contrast(text, PANEL_BG) < MIN_CONTRAST && i <= 20; i++) {
-    text = lighten(base, i * 0.05);
-  }
-
   return {
     stripe: base,
     bg: alpha(base, 0.15),
-    text,
+    text: readableText(base),
     border: alpha(base, 0.4),
   };
 }

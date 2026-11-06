@@ -56,7 +56,7 @@ function StatusIcon({ status }: { status: MessageRow["status"] }) {
     case "delivered":
       return <CheckCheck size={12} aria-label="Entregue" />;
     case "read":
-      return <CheckCheck size={12} className="text-cyber-bg" aria-label="Lida" />;
+      return <CheckCheck size={12} className="text-read" aria-label="Lida" />;
     default:
       return null;
   }
@@ -446,7 +446,7 @@ export default function ChatWindow({
 
   if (!conversation) {
     return (
-      <section className="flex flex-1 items-center justify-center text-cyber-white/50">
+      <section className="flex flex-1 items-center justify-center text-secondary">
         Selecione uma conversa para começar.
       </section>
     );
@@ -458,7 +458,7 @@ export default function ChatWindow({
 
   return (
     <section
-      className="relative flex min-w-0 flex-1 flex-col"
+      className="chat-bg relative flex min-w-0 flex-1 flex-col"
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {
           e.preventDefault();
@@ -471,7 +471,7 @@ export default function ChatWindow({
       onDrop={onDrop}
     >
       {dragOver && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-cyber-cyan bg-cyber-bg/80 text-cyber-cyan">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-accent bg-app/80 text-accent-text">
           Solte o arquivo para enviar
         </div>
       )}
@@ -483,7 +483,7 @@ export default function ChatWindow({
         }}
         className="flex items-center gap-3 px-5 py-3"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyber-cyan/15 font-mono text-sm font-bold text-cyber-cyan">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-accent-text">
           {initials(name)}
         </div>
         <div className="min-w-0 flex-1">
@@ -493,7 +493,7 @@ export default function ChatWindow({
             </h2>
             <SectorTag sector={sector} size="lg" className="max-w-[50%]" />
           </div>
-          <p className="truncate text-xs text-cyber-white/70">
+          <p className="truncate text-xs text-secondary">
             {conversation.contact ? formatPhone(conversation.contact.phone) : ""}
           </p>
         </div>
@@ -511,16 +511,16 @@ export default function ChatWindow({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="flex-1 space-y-3 overflow-y-auto px-5 py-4"
+        className="flex-1 space-y-1.5 overflow-y-auto px-5 py-4"
       >
         {loading && messages.length === 0 && (
-          <p className="flex items-center justify-center gap-2 text-sm text-cyber-white/50">
+          <p className="flex items-center justify-center gap-2 text-sm text-secondary">
             <Loader2 size={14} className="animate-spin" /> Carregando mensagens...
           </p>
         )}
-        {loadError && <p className="text-center text-sm text-cyber-orange">{loadError}</p>}
+        {loadError && <p className="text-center text-sm text-danger">{loadError}</p>}
         {!loading && !loadError && messages.length === 0 && (
-          <p className="text-center text-sm text-cyber-white/50">Nenhuma mensagem ainda.</p>
+          <p className="text-center text-sm text-secondary">Nenhuma mensagem ainda.</p>
         )}
 
         {messages.map((m) => {
@@ -534,8 +534,8 @@ export default function ChatWindow({
           return (
             <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm ${
-                  out ? "bg-cyber-cyan text-cyber-bg" : "bg-cyber-panel text-cyber-white"
+                className={`max-w-[70%] rounded-xl px-2.5 py-1.5 text-sm text-bubble-text shadow-sm ${
+                  out ? "bubble-tail-out bg-bubble-out" : "bubble-tail-in bg-bubble-in"
                 }`}
               >
                 {isMedia ? (
@@ -543,7 +543,7 @@ export default function ChatWindow({
                 ) : (
                   <>
                     {m.type !== "text" && (
-                      <p className="font-mono text-xs font-bold opacity-80">
+                      <p className="text-xs font-bold opacity-80">
                         {otherLabel[m.type] ?? "[Mensagem]"}
                       </p>
                     )}
@@ -551,12 +551,10 @@ export default function ChatWindow({
                   </>
                 )}
                 <p
-                  className={`mt-1 flex items-center justify-end gap-1 font-mono text-[10px] ${
-                    out ? "text-cyber-bg/70" : "text-cyber-white/40"
-                  }`}
+                  className="-mb-0.5 mt-0.5 flex items-center justify-end gap-1 text-[11px] text-secondary"
                 >
                   {m.status === "failed" && out ? (
-                    <span className="flex items-center gap-1 font-bold text-red-700">
+                    <span className="flex items-center gap-1 font-bold text-danger">
                       <AlertCircle size={12} /> Falha no envio
                     </span>
                   ) : (
@@ -574,7 +572,7 @@ export default function ChatWindow({
 
       <footer
         style={{ borderTop: `3px solid ${sectorStyle(sector.color).stripe}` }}
-        className="p-3"
+        className="bg-panel p-3"
       >
         {pending && (
           <AttachmentPanel
@@ -589,8 +587,8 @@ export default function ChatWindow({
             onCancel={clearPending}
           />
         )}
-        {!pending && mediaError && <p className="mb-2 text-xs text-cyber-orange">{mediaError}</p>}
-        {sendError && <p className="mb-2 text-xs text-cyber-orange">{sendError}</p>}
+        {!pending && mediaError && <p className="mb-2 text-xs text-danger">{mediaError}</p>}
+        {sendError && <p className="mb-2 text-xs text-danger">{sendError}</p>}
 
         {recording ? (
           <VoiceRecorder
@@ -617,7 +615,7 @@ export default function ChatWindow({
               disabled={mediaBusy}
               aria-label="Anexar arquivo"
               title="Anexar arquivo"
-              className="rounded-lg border border-cyber-line p-2 text-cyber-white/70 transition hover:border-cyber-cyan hover:text-cyber-cyan disabled:opacity-40"
+              className="rounded-lg border border-subtle p-2 text-secondary transition hover:border-accent hover:text-accent-text disabled:opacity-40"
             >
               <Paperclip size={18} />
             </button>
@@ -625,7 +623,7 @@ export default function ChatWindow({
               {qrMatches.length > 0 && (
                 <ul
                   role="listbox"
-                  className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-56 overflow-y-auto rounded-lg border border-cyber-line bg-cyber-panel shadow-lg"
+                  className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-56 overflow-y-auto rounded-lg border border-subtle bg-panel shadow-lg"
                 >
                   {qrMatches.map((r, i) => (
                     <li key={r.id} role="option" aria-selected={i === qrIndex}>
@@ -637,11 +635,11 @@ export default function ChatWindow({
                         }}
                         onMouseEnter={() => setQrIndex(i)}
                         className={`flex w-full flex-col px-3 py-2 text-left text-sm ${
-                          i === qrIndex ? "bg-cyber-bg" : ""
+                          i === qrIndex ? "bg-panel-hover" : ""
                         }`}
                       >
-                        <span className="font-mono text-xs text-cyber-cyan">{r.shortcut}</span>
-                        <span className="truncate text-xs text-cyber-white/70">{r.body}</span>
+                        <span className="text-xs text-accent-text">{r.shortcut}</span>
+                        <span className="truncate text-xs text-secondary">{r.body}</span>
                       </button>
                     </li>
                   ))}
@@ -686,14 +684,14 @@ export default function ChatWindow({
                 rows={1}
                 maxLength={4096}
                 placeholder="Digite uma mensagem ou / para respostas rápidas..."
-                className="max-h-32 w-full resize-none rounded-lg border border-cyber-line bg-cyber-panel px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
+                className="max-h-32 w-full resize-none rounded-3xl border border-transparent bg-app px-4 py-2 text-sm outline-none placeholder:text-secondary focus:border-accent"
               />
             </div>
             {text.trim() || !canRecord ? (
               <button
                 onClick={send}
                 disabled={!text.trim()}
-                className="rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-full bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Enviar
               </button>
@@ -707,7 +705,7 @@ export default function ChatWindow({
                 disabled={mediaBusy || !!pending}
                 aria-label="Gravar áudio"
                 title="Gravar áudio"
-                className="rounded-lg bg-cyber-cyan p-2 text-cyber-bg transition hover:opacity-90 disabled:opacity-40"
+                className="rounded-full bg-accent p-2.5 text-on-accent transition hover:bg-accent-hover disabled:opacity-40"
               >
                 <Mic size={18} />
               </button>

@@ -7,9 +7,9 @@ import ContactOwner from "./ContactOwner";
 import StageSelect from "./StageSelect";
 
 const STATUS_OPTIONS: { value: ConversationStatus; label: string; cls: string }[] = [
-  { value: "open", label: "Aberta", cls: "border-cyber-cyan/60 text-cyber-cyan" },
-  { value: "waiting", label: "Aguardando", cls: "border-cyber-amber/60 text-cyber-amber" },
-  { value: "resolved", label: "Resolvida", cls: "border-cyber-line text-cyber-white/60" },
+  { value: "open", label: "Aberta", cls: "border-accent/60 text-accent-text" },
+  { value: "waiting", label: "Aguardando", cls: "border-warn/60 text-warn" },
+  { value: "resolved", label: "Resolvida", cls: "border-subtle text-secondary" },
 ];
 
 export default function ConversationActions({
@@ -74,7 +74,7 @@ export default function ConversationActions({
         />
         <Link
           href="/funil"
-          className="rounded-full border border-cyber-line px-3 py-1 text-xs text-cyber-white/70 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+          className="rounded-full border border-subtle px-3 py-1 text-xs text-secondary transition hover:border-accent hover:text-accent-text"
         >
           Ver no funil
         </Link>
@@ -83,7 +83,7 @@ export default function ConversationActions({
           disabled={busy}
           onChange={(e) => changeStatus(e.target.value as ConversationStatus)}
           aria-label="Status da conversa"
-          className={`rounded-full border bg-cyber-bg px-3 py-1 text-xs outline-none disabled:opacity-60 ${current.cls}`}
+          className={`rounded-full border bg-app px-3 py-1 text-xs outline-none disabled:opacity-60 ${current.cls}`}
         >
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -92,7 +92,7 @@ export default function ConversationActions({
           ))}
         </select>
       </div>
-      {error && <p className="text-xs text-cyber-orange">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

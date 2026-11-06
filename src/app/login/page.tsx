@@ -34,12 +34,12 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-cyber-line bg-cyber-panel p-8 shadow-2xl">
-        <p className="font-mono text-xs uppercase tracking-widest text-cyber-cyan">
+      <div className="w-full max-w-sm rounded-2xl border border-subtle bg-panel p-8 shadow-2xl">
+        <p className="text-xs uppercase tracking-widest text-accent-text">
           RHOCAL Equipamentos
         </p>
         <h1 className="mt-2 text-2xl font-bold">CRM WhatsApp</h1>
-        <p className="mt-1 text-sm text-cyber-white/60">
+        <p className="mt-1 text-sm text-secondary">
           Entre com seu e-mail e senha.
         </p>
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="mb-1 block text-sm text-cyber-white/80"
+              className="mb-1 block text-sm text-primary"
             >
               E-mail
             </label>
@@ -58,14 +58,14 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
+              className="w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent"
             />
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="mb-1 block text-sm text-cyber-white/80"
+              className="mb-1 block text-sm text-primary"
             >
               Senha
             </label>
@@ -76,12 +76,12 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan"
+              className="w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-cyber-orange" role="alert">
+            <p className="text-sm text-danger" role="alert">
               {error}
             </p>
           )}
@@ -89,7 +89,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-cyber-cyan py-2 text-sm font-bold text-cyber-bg transition hover:brightness-110 disabled:opacity-50"
+            className="w-full rounded-lg bg-accent py-2 text-sm font-bold text-on-accent transition hover:brightness-110 disabled:opacity-50"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>

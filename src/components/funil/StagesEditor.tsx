@@ -20,7 +20,7 @@ async function api(url: string, method: string, body?: unknown) {
 }
 
 const inputCls =
-  "min-w-0 rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-sm outline-none focus:border-cyber-cyan";
+  "min-w-0 rounded-lg border border-subtle bg-app px-2 py-1.5 text-sm outline-none focus:border-accent";
 
 function Row({
   stage,
@@ -80,14 +80,14 @@ function Row({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className="rounded-lg border border-cyber-line bg-cyber-bg p-2"
+      className="rounded-lg border border-subtle bg-app p-2"
     >
       <div className="flex flex-wrap items-center gap-2">
         <button
           {...attributes}
           {...listeners}
           aria-label="Arrastar para reordenar"
-          className="cursor-grab touch-none text-cyber-white/50 hover:text-cyber-cyan"
+          className="cursor-grab touch-none text-secondary hover:text-accent-text"
         >
           <GripVertical size={16} />
         </button>
@@ -96,7 +96,7 @@ function Row({
           value={validColor ? color : "#000000"}
           onChange={(e) => setColor(e.target.value)}
           aria-label="Cor da etapa"
-          className="h-8 w-8 shrink-0 cursor-pointer rounded border border-cyber-line bg-transparent p-0.5"
+          className="h-8 w-8 shrink-0 cursor-pointer rounded border border-subtle bg-transparent p-0.5"
         />
         <input
           value={name}
@@ -106,7 +106,7 @@ function Row({
           aria-label="Nome da etapa"
           className={`${inputCls} flex-1`}
         />
-        <label className="flex items-center gap-1 text-[11px] text-cyber-white/70" title="Etapa que conclui a conversa">
+        <label className="flex items-center gap-1 text-[11px] text-secondary" title="Etapa que conclui a conversa">
           <input
             type="checkbox"
             checked={kind === "done"}
@@ -120,7 +120,7 @@ function Row({
             disabled={busy || !validColor || !name.trim()}
             aria-label="Salvar etapa"
             title="Salvar"
-            className="rounded-lg bg-cyber-cyan p-1.5 text-cyber-bg disabled:opacity-50"
+            className="rounded-lg bg-accent p-1.5 text-on-accent disabled:opacity-50"
           >
             <Save size={14} />
           </button>
@@ -130,14 +130,14 @@ function Row({
           disabled={busy}
           aria-label="Arquivar etapa"
           title="Arquivar"
-          className="rounded-lg border border-cyber-line p-1.5 text-cyber-white/70 hover:border-cyber-orange hover:text-cyber-orange disabled:opacity-50"
+          className="rounded-lg border border-subtle p-1.5 text-secondary hover:border-danger hover:text-danger disabled:opacity-50"
         >
           <Archive size={14} />
         </button>
       </div>
       {moveOpen && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-cyber-line pt-2 text-xs">
-          <span className="text-cyber-white/70">
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-subtle pt-2 text-xs">
+          <span className="text-secondary">
             {count} conversa(s) nesta etapa. Mover para:
           </span>
           <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)} className={inputCls}>
@@ -151,7 +151,7 @@ function Row({
           <button
             onClick={() => archive(moveTo)}
             disabled={!moveTo || busy}
-            className="rounded-lg bg-cyber-orange px-3 py-1.5 font-bold text-cyber-bg disabled:opacity-50"
+            className="rounded-lg bg-danger px-3 py-1.5 font-bold text-on-accent disabled:opacity-50"
           >
             Mover e arquivar
           </button>
@@ -222,17 +222,17 @@ export default function StagesEditor({
         role="dialog"
         aria-label="Editar etapas"
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl border border-cyber-line bg-cyber-panel"
+        className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl border border-subtle bg-panel"
       >
-        <header className="flex items-center justify-between border-b border-cyber-line px-4 py-3">
+        <header className="flex items-center justify-between border-b border-subtle px-4 py-3">
           <h2 className="text-sm font-bold">Etapas do funil</h2>
-          <button onClick={onClose} aria-label="Fechar" className="text-cyber-white/60 hover:text-cyber-orange">
+          <button onClick={onClose} aria-label="Fechar" className="text-secondary hover:text-danger">
             <X size={18} />
           </button>
         </header>
 
         <div className="space-y-3 overflow-y-auto p-4">
-          {error && <p className="rounded-lg border border-cyber-orange/40 bg-cyber-orange/10 px-3 py-2 text-xs text-cyber-orange">{error}</p>}
+          {error && <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>}
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={stages.map((s) => s.id)} strategy={verticalListSortingStrategy}>
@@ -255,13 +255,13 @@ export default function StagesEditor({
             </SortableContext>
           </DndContext>
 
-          <div className="flex items-center gap-2 border-t border-cyber-line pt-3">
+          <div className="flex items-center gap-2 border-t border-subtle pt-3">
             <input
               type="color"
               value={newColor}
               onChange={(e) => setNewColor(e.target.value)}
               aria-label="Cor da nova etapa"
-              className="h-8 w-8 shrink-0 cursor-pointer rounded border border-cyber-line bg-transparent p-0.5"
+              className="h-8 w-8 shrink-0 cursor-pointer rounded border border-subtle bg-transparent p-0.5"
             />
             <input
               value={newName}
@@ -274,7 +274,7 @@ export default function StagesEditor({
             <button
               onClick={create}
               disabled={busy || !newName.trim()}
-              className="flex items-center gap-1 rounded-lg bg-cyber-cyan px-3 py-1.5 text-sm font-bold text-cyber-bg disabled:opacity-50"
+              className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-bold text-on-accent disabled:opacity-50"
             >
               <Plus size={14} /> Criar
             </button>

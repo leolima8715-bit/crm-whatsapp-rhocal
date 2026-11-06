@@ -143,7 +143,7 @@ export default function MediaContent({ m }: { m: MessageRow }) {
         <FileText size={28} className="shrink-0 opacity-80" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{name}</p>
-          <p className="font-mono text-[10px] uppercase opacity-70">{m.media_mime ?? "arquivo"}</p>
+          <p className="text-[10px] uppercase opacity-70">{m.media_mime ?? "arquivo"}</p>
         </div>
         <a
           href={downloadUrl}

@@ -122,22 +122,22 @@ export default function VoiceRecorder({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-cyber-line bg-cyber-panel px-3 py-2">
+    <div className="flex items-center gap-3 rounded-lg border border-subtle bg-panel px-3 py-2">
       <button
         onClick={cancel}
         aria-label="Cancelar gravação"
-        className="text-cyber-white/60 hover:text-cyber-orange"
+        className="text-secondary hover:text-danger"
       >
         <Trash2 size={18} />
       </button>
-      <div className="flex flex-1 items-center gap-2 font-mono text-sm">
+      <div className="flex flex-1 items-center gap-2 text-sm">
         {ready ? (
           <>
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-cyber-orange" />
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-danger" />
             Gravando… {mmss(seconds)}
           </>
         ) : (
-          <span className="flex items-center gap-2 text-cyber-white/60">
+          <span className="flex items-center gap-2 text-secondary">
             <Loader2 size={14} className="animate-spin" /> Aguardando o microfone…
           </span>
         )}
@@ -145,7 +145,7 @@ export default function VoiceRecorder({
       <button
         onClick={finish}
         disabled={!ready}
-        className="flex items-center gap-2 rounded-lg bg-cyber-cyan px-4 py-1.5 text-sm font-bold text-cyber-bg hover:opacity-90 disabled:opacity-50"
+        className="flex items-center gap-2 rounded-lg bg-accent px-4 py-1.5 text-sm font-bold text-on-accent hover:bg-accent-hover disabled:opacity-50"
       >
         <Send size={14} /> Enviar
       </button>

@@ -14,7 +14,7 @@ import {
   type SectorOption,
   type StageRow,
 } from "@/lib/inbox-types";
-import { alpha, conversationSector, sectorInfo, sectorStyle, type SectorInfo } from "@/lib/sector-style";
+import { alpha, conversationSector, inkOn, sectorInfo, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import SectorTag from "@/components/inbox/SectorTag";
 import StagesEditor from "./StagesEditor";
 
@@ -23,7 +23,7 @@ const byRecent = (a: ConversationRow, b: ConversationRow) =>
   (a.last_message_at ? Date.parse(a.last_message_at) : 0);
 
 const selectCls =
-  "rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-xs outline-none focus:border-cyber-cyan";
+  "rounded-lg border border-subtle bg-app px-2 py-1.5 text-xs outline-none focus:border-accent";
 
 function Card({
   c,
@@ -58,27 +58,27 @@ function Card({
     >
       <div className="flex items-center justify-between gap-2">
         <SectorTag sector={{ ...sector, name: label }} className="max-w-[75%]" />
-        <span className="shrink-0 text-xs text-cyber-white/60">{relativeTime(c.last_message_at)}</span>
+        <span className="shrink-0 text-xs text-secondary">{relativeTime(c.last_message_at)}</span>
       </div>
       <p className="mt-1 truncate text-sm font-bold" title={displayName(c.contact)}>
         {displayName(c.contact)}
       </p>
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-xs text-cyber-white/70">
+        <span className="truncate text-xs text-secondary">
           {c.last_message_at || c.last_message_preview ? previewLabel(c.last_message_preview) : ""}
         </span>
         {c.unread_count > 0 && (
           <span
-            style={{ backgroundColor: stripe, color: "#07090F" }}
+            style={{ backgroundColor: stripe, color: inkOn(stripe) }}
             className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold"
           >
             {c.unread_count}
           </span>
         )}
       </div>
-      <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-cyber-white/50">
+      <div className="mt-1 flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider text-secondary">
         <span className="truncate">{owner ?? "Sem responsável"}</span>
-        <span className="max-w-[50%] shrink-0 truncate rounded border border-cyber-line px-1.5 py-0.5">
+        <span className="max-w-[50%] shrink-0 truncate rounded border border-subtle px-1.5 py-0.5">
           {c.instance?.label ?? "Sem número"}
         </span>
       </div>
@@ -113,12 +113,12 @@ function Column({
     <section
       ref={setNodeRef}
       style={isOver ? { borderColor: stage.color } : undefined}
-      className="flex h-full w-72 shrink-0 flex-col rounded-xl border border-cyber-line bg-cyber-panel"
+      className="flex h-full w-72 shrink-0 flex-col rounded-xl border border-subtle bg-panel"
     >
-      <header className="flex items-center gap-2 border-b border-cyber-line px-3 py-2">
+      <header className="flex items-center gap-2 border-b border-subtle px-3 py-2">
         <span aria-hidden style={{ backgroundColor: stage.color }} className="h-2.5 w-2.5 rounded-full" />
         <h2 className="min-w-0 flex-1 truncate text-sm font-bold">{stage.name}</h2>
-        <span className="rounded-full bg-cyber-bg px-2 font-mono text-xs text-cyber-white/70">
+        <span className="rounded-full bg-app px-2 text-xs text-secondary">
           {items.length}
         </span>
       </header>
@@ -133,7 +133,7 @@ function Column({
           />
         ))}
         {items.length === 0 && (
-          <p className="px-2 py-4 text-center text-xs text-cyber-white/40">Nenhuma conversa</p>
+          <p className="px-2 py-4 text-center text-xs text-secondary">Nenhuma conversa</p>
         )}
       </div>
     </section>
@@ -361,7 +361,7 @@ export default function FunilBoard({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-cyber-line px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-subtle px-4 py-2">
         <input
           type="search"
           placeholder="Buscar por nome ou telefone..."
@@ -408,7 +408,7 @@ export default function FunilBoard({
                 aria-pressed={on}
                 style={on ? { borderColor: st.stripe, backgroundColor: st.bg } : undefined}
                 className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] leading-tight transition ${
-                  on ? "text-cyber-white" : "border-cyber-line text-cyber-white/70 hover:border-cyber-white/30"
+                  on ? "text-primary" : "border-subtle text-secondary hover:border-secondary/50"
                 }`}
               >
                 <span aria-hidden style={{ backgroundColor: st.stripe }} className="h-2 w-2 rounded-full" />
@@ -419,7 +419,7 @@ export default function FunilBoard({
         </div>
 
         {isGestor && (
-          <span className="ml-auto font-mono text-[11px] text-cyber-white/60" title="Conversas carregadas / visíveis após os filtros">
+          <span className="ml-auto text-[11px] text-secondary" title="Conversas carregadas / visíveis após os filtros">
             {conversations.length} conversas, {visible.length} visíveis
           </span>
         )}
@@ -427,7 +427,7 @@ export default function FunilBoard({
         {isGestor && (
           <button
             onClick={() => setEditing(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-cyber-line px-3 py-1.5 text-xs text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+            className="flex items-center gap-1.5 rounded-lg border border-subtle px-3 py-1.5 text-xs text-primary transition hover:border-accent hover:text-accent-text"
           >
             <Settings2 size={14} /> Editar etapas
           </button>
@@ -435,7 +435,7 @@ export default function FunilBoard({
       </div>
 
       {notice && (
-        <p className="border-b border-cyber-orange/40 bg-cyber-orange/10 px-5 py-2 text-sm text-cyber-orange">
+        <p className="border-b border-danger/40 bg-danger/10 px-5 py-2 text-sm text-danger">
           {notice}
         </p>
       )}
@@ -461,7 +461,7 @@ export default function FunilBoard({
             />
           ))}
           {stages.length === 0 && (
-            <p className="p-4 text-sm text-cyber-white/50">Nenhuma etapa configurada.</p>
+            <p className="p-4 text-sm text-secondary">Nenhuma etapa configurada.</p>
           )}
         </div>
         <DragOverlay>

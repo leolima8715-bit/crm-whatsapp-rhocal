@@ -7,9 +7,9 @@ import type { NoteEntry, Tag } from "@/lib/inbox-types";
 import NewDealModal from "@/components/funil/NewDealModal";
 import TagChip from "./TagChip";
 
-const labelCls = "font-mono text-xs uppercase tracking-widest text-cyber-cyan";
+const labelCls = "text-xs uppercase tracking-widest text-accent-text";
 const inputCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-1.5 text-sm outline-none focus:border-cyber-cyan";
+  "w-full rounded-lg border border-subtle bg-app px-3 py-1.5 text-sm outline-none focus:border-accent";
 
 const PALETTE = ["#00B4D8", "#FF6B2B", "#FEB23D", "#8B5CF6", "#22C55E", "#EF4444", "#EC4899", "#64748B"];
 
@@ -102,21 +102,21 @@ export function TagsSection({
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label="Adicionar tag"
-          className="rounded border border-cyber-line p-0.5 text-cyber-cyan hover:border-cyber-cyan"
+          className="rounded border border-subtle p-0.5 text-accent-text hover:border-accent"
         >
           <Plus size={14} />
         </button>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {selected.length === 0 && <p className="text-xs text-cyber-white/50">Nenhuma tag.</p>}
+        {selected.length === 0 && <p className="text-xs text-secondary">Nenhuma tag.</p>}
         {selected.map((t) => (
           <TagChip key={t.id} tag={t} onRemove={() => save(selectedIds.filter((id) => id !== t.id))} />
         ))}
       </div>
 
       {open && (
-        <div className="mt-2 space-y-2 rounded-lg border border-cyber-line bg-cyber-bg p-2">
+        <div className="mt-2 space-y-2 rounded-lg border border-subtle bg-app p-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -124,7 +124,7 @@ export function TagsSection({
             className={inputCls}
           />
           <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-            {available.length === 0 && <p className="text-xs text-cyber-white/50">Nenhuma tag disponível.</p>}
+            {available.length === 0 && <p className="text-xs text-secondary">Nenhuma tag disponível.</p>}
             {available.map((t) => (
               <button key={t.id} onClick={() => save([...selectedIds, t.id])} className="hover:opacity-80">
                 <TagChip tag={t} />
@@ -134,7 +134,7 @@ export function TagsSection({
 
           {isGestor &&
             (creating ? (
-              <form onSubmit={createTag} className="space-y-2 border-t border-cyber-line pt-2">
+              <form onSubmit={createTag} className="space-y-2 border-t border-subtle pt-2">
                 <input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -149,7 +149,7 @@ export function TagsSection({
                       type="button"
                       onClick={() => setNewColor(c)}
                       aria-label={`Cor ${c}`}
-                      className={`h-5 w-5 rounded-full border-2 ${newColor === c ? "border-cyber-white" : "border-transparent"}`}
+                      className={`h-5 w-5 rounded-full border-2 ${newColor === c ? "border-primary" : "border-transparent"}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
@@ -158,28 +158,28 @@ export function TagsSection({
                   <button
                     type="submit"
                     disabled={busy || !newName.trim()}
-                    className="flex-1 rounded-lg bg-cyber-cyan py-1 text-xs font-bold text-cyber-bg disabled:opacity-50"
+                    className="flex-1 rounded-lg bg-accent py-1 text-xs font-bold text-on-accent disabled:opacity-50"
                   >
                     {busy ? "Criando..." : "Criar tag"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCreating(false)}
-                    className="rounded-lg border border-cyber-line px-3 text-xs text-cyber-white/70"
+                    className="rounded-lg border border-subtle px-3 text-xs text-secondary"
                   >
                     Cancelar
                   </button>
                 </div>
               </form>
             ) : (
-              <button onClick={() => setCreating(true)} className="text-xs text-cyber-cyan underline">
+              <button onClick={() => setCreating(true)} className="text-xs text-accent-text underline">
                 Criar tag
               </button>
             ))}
         </div>
       )}
 
-      {error && <p className="mt-1 text-xs text-cyber-orange">{error}</p>}
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   );
 }
@@ -224,7 +224,7 @@ export function NotesSection({ contactId }: { contactId: string }) {
   return (
     <div>
       <h4 className={`${labelCls} mb-1`}>Notas internas</h4>
-      <p className="mb-2 text-[11px] text-cyber-amber">Visível apenas para a equipe.</p>
+      <p className="mb-2 text-[11px] text-warn">Visível apenas para a equipe.</p>
 
       <form onSubmit={add} className="space-y-2">
         <textarea
@@ -235,33 +235,33 @@ export function NotesSection({ contactId }: { contactId: string }) {
           placeholder="Escreva uma nota..."
           className={`${inputCls} resize-none`}
         />
-        {error && <p className="text-xs text-cyber-orange">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
         <button
           type="submit"
           disabled={saving || !body.trim()}
-          className="w-full rounded-lg border border-cyber-cyan/50 py-1.5 text-xs font-bold text-cyber-cyan hover:bg-cyber-cyan/10 disabled:opacity-50"
+          className="w-full rounded-lg border border-accent/50 py-1.5 text-xs font-bold text-accent-text hover:bg-accent/10 disabled:opacity-50"
         >
           {saving ? "Salvando..." : "Adicionar nota"}
         </button>
       </form>
 
       <div className="mt-3">
-        {failed && <p className="text-xs text-cyber-orange">Não foi possível carregar as notas.</p>}
+        {failed && <p className="text-xs text-danger">Não foi possível carregar as notas.</p>}
         {!failed && !notes && (
-          <p className="flex items-center gap-2 text-xs text-cyber-white/50">
+          <p className="flex items-center gap-2 text-xs text-secondary">
             <Loader2 size={12} className="animate-spin" /> Carregando...
           </p>
         )}
-        {notes && notes.length === 0 && <p className="text-xs text-cyber-white/50">Nenhuma nota ainda.</p>}
+        {notes && notes.length === 0 && <p className="text-xs text-secondary">Nenhuma nota ainda.</p>}
         {notes && notes.length > 0 && (
-          <ol className="space-y-3 border-l border-cyber-line pl-3">
+          <ol className="space-y-3 border-l border-subtle pl-3">
             {notes.map((n) => (
               <li key={n.id} className="relative text-xs">
-                <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-cyber-amber" />
-                <p className="font-mono text-[10px] text-cyber-white/40">
+                <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-warn" />
+                <p className="text-[10px] text-secondary">
                   {n.author_name ?? "—"} · {dateTime(n.created_at)}
                 </p>
-                <p className="whitespace-pre-wrap break-words text-cyber-white/80">{n.body}</p>
+                <p className="whitespace-pre-wrap break-words text-primary">{n.body}</p>
               </li>
             ))}
           </ol>
@@ -304,12 +304,12 @@ export function DealSection({
       {deals && deals.length > 0 && (
         <ul className="mb-2 space-y-1.5">
           {deals.map((d) => (
-            <li key={d.id} className="rounded-lg border border-cyber-line p-2 text-xs">
+            <li key={d.id} className="rounded-lg border border-subtle p-2 text-xs">
               <p className="font-semibold">{d.title}</p>
               <p className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: d.stage_color }} />
                 {d.stage_name}
-                <Link href="/funil" className="ml-auto text-cyber-cyan underline">
+                <Link href="/funil" className="ml-auto text-accent-text underline">
                   Ver no funil
                 </Link>
               </p>
@@ -319,7 +319,7 @@ export function DealSection({
       )}
       <button
         onClick={() => setModal(true)}
-        className="w-full rounded-lg border border-cyber-line py-1.5 text-xs text-cyber-white/80 hover:border-cyber-cyan hover:text-cyber-cyan"
+        className="w-full rounded-lg border border-subtle py-1.5 text-xs text-primary hover:border-accent hover:text-accent-text"
       >
         Criar negócio
       </button>

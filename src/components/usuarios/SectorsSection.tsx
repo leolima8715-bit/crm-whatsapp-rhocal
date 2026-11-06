@@ -29,12 +29,12 @@ function ColorPicker({
         aria-expanded={open}
         title="Alterar cor"
         style={{ backgroundColor: value }}
-        className="h-5 w-5 rounded-full border border-cyber-white/30 transition hover:scale-110 disabled:opacity-50"
+        className="h-5 w-5 rounded-full border border-secondary/50 transition hover:scale-110 disabled:opacity-50"
       />
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-7 z-20 grid grid-cols-4 gap-2 rounded-lg border border-cyber-line bg-cyber-bg p-3 shadow-xl">
+          <div className="absolute left-0 top-7 z-20 grid grid-cols-4 gap-2 rounded-lg border border-subtle bg-app p-3 shadow-xl">
             {SECTOR_PALETTE.map((c) => (
               <button
                 key={c}
@@ -46,10 +46,10 @@ function ColorPicker({
                 }}
                 style={{ backgroundColor: c }}
                 className={`flex h-6 w-6 items-center justify-center rounded-full transition hover:scale-110 ${
-                  c === value ? "ring-2 ring-cyber-white ring-offset-2 ring-offset-cyber-bg" : ""
+                  c === value ? "ring-2 ring-primary ring-offset-2 ring-offset-app" : ""
                 }`}
               >
-                {c === value && <Check size={12} className="text-cyber-bg" />}
+                {c === value && <Check size={12} className="text-black" />}
               </button>
             ))}
           </div>
@@ -71,7 +71,7 @@ async function api(url: string, method: string, body?: unknown) {
 }
 
 const inputCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-1.5 text-sm outline-none focus:border-cyber-cyan";
+  "w-full rounded-lg border border-subtle bg-app px-3 py-1.5 text-sm outline-none focus:border-accent";
 
 export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
   const router = useRouter();
@@ -140,7 +140,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
               setError(null);
               setAdding(true);
             }}
-            className="flex items-center gap-2 rounded-lg border border-cyber-cyan/50 px-3 py-1.5 text-sm text-cyber-cyan transition hover:bg-cyber-cyan/10"
+            className="flex items-center gap-2 rounded-lg border border-accent/50 px-3 py-1.5 text-sm text-accent-text transition hover:bg-accent/10"
           >
             <Plus size={14} /> Novo setor
           </button>
@@ -148,7 +148,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
       </div>
 
       {error && (
-        <p className="mb-3 rounded-lg border border-cyber-orange/40 px-4 py-2 text-sm text-cyber-orange">
+        <p className="mb-3 rounded-lg border border-danger/40 px-4 py-2 text-sm text-danger">
           {error}
         </p>
       )}
@@ -171,7 +171,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
           <button
             type="submit"
             disabled={busy === "new" || !newName.trim()}
-            className="flex shrink-0 items-center gap-2 rounded-lg bg-cyber-cyan px-3 text-sm font-bold text-cyber-bg disabled:opacity-50"
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-accent px-3 text-sm font-bold text-on-accent disabled:opacity-50"
           >
             {busy === "new" ? <Loader2 size={14} className="animate-spin" /> : "Criar"}
           </button>
@@ -184,7 +184,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
               setError(null);
             }}
             aria-label="Cancelar"
-            className="shrink-0 rounded-lg border border-cyber-line px-3 text-cyber-white/60 hover:text-cyber-orange"
+            className="shrink-0 rounded-lg border border-subtle px-3 text-secondary hover:text-danger"
           >
             <X size={14} />
           </button>
@@ -192,11 +192,11 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
       )}
 
       {sectors.length === 0 ? (
-        <p className="rounded-lg border border-cyber-line bg-cyber-panel p-4 text-sm text-cyber-white/60">
+        <p className="rounded-lg border border-subtle bg-panel p-4 text-sm text-secondary">
           Nenhum setor cadastrado.
         </p>
       ) : (
-        <ul className="divide-y divide-cyber-line rounded-lg border border-cyber-line bg-cyber-panel">
+        <ul className="divide-y divide-subtle rounded-lg border border-subtle bg-panel">
           {sectors.map((s) => (
             <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
               <ColorPicker
@@ -218,7 +218,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
                     type="submit"
                     disabled={busy === s.id || !editName.trim()}
                     aria-label="Salvar"
-                    className="shrink-0 rounded-lg bg-cyber-cyan px-3 text-cyber-bg disabled:opacity-50"
+                    className="shrink-0 rounded-lg bg-accent px-3 text-on-accent disabled:opacity-50"
                   >
                     {busy === s.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                   </button>
@@ -229,7 +229,7 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
                       setError(null);
                     }}
                     aria-label="Cancelar"
-                    className="shrink-0 rounded-lg border border-cyber-line px-3 text-cyber-white/60 hover:text-cyber-orange"
+                    className="shrink-0 rounded-lg border border-subtle px-3 text-secondary hover:text-danger"
                   >
                     <X size={14} />
                   </button>
@@ -245,14 +245,14 @@ export default function SectorsSection({ sectors }: { sectors: Sector[] }) {
                         setEditingId(s.id);
                         setEditName(s.name);
                       }}
-                      className="flex items-center gap-1.5 rounded-lg border border-cyber-line px-2.5 py-1 text-xs text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg border border-subtle px-2.5 py-1 text-xs text-primary transition hover:border-accent hover:text-accent-text disabled:opacity-50"
                     >
                       <Pencil size={12} /> Renomear
                     </button>
                     <button
                       disabled={busy === s.id}
                       onClick={() => archive(s)}
-                      className="flex items-center gap-1.5 rounded-lg border border-cyber-line px-2.5 py-1 text-xs text-cyber-white/80 transition hover:border-cyber-amber hover:text-cyber-amber disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg border border-subtle px-2.5 py-1 text-xs text-primary transition hover:border-warn hover:text-warn disabled:opacity-50"
                     >
                       {busy === s.id ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} />}{" "}
                       Arquivar

@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+const c = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,21 +11,26 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-        cyber: {
-          bg: "#07090F",
-          panel: "#0D111C",
-          line: "#1A2233",
-          cyan: "#00B4D8",
-          orange: "#FF6B2B",
-          amber: "#FEB23D",
-          white: "#F0F4FF",
-        },
+        app: c("app"),
+        panel: { DEFAULT: c("panel"), hover: c("panel-hover") },
+        "panel-hover": c("panel-hover"),
+        chat: c("chat"),
+        "bubble-in": c("bubble-in"),
+        "bubble-out": c("bubble-out"),
+        "bubble-text": c("bubble-text"),
+        subtle: c("border"),
+        primary: c("text"),
+        secondary: c("text-secondary"),
+        accent: { DEFAULT: c("accent"), hover: c("accent-hover"), text: c("accent-text") },
+        "on-accent": c("on-accent"),
+        danger: c("danger"),
+        warn: c("warn"),
+        read: c("read"),
+        "system-pill": c("system-pill"),
       },
       fontFamily: {
-        sans: ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
-        mono: ["var(--font-space-mono)", "ui-monospace", "monospace"],
+        sans: ['"Segoe UI"', '"Helvetica Neue"', "Helvetica", "Arial", "sans-serif"],
+        mono: ['"Segoe UI"', '"Helvetica Neue"', "Helvetica", "Arial", "sans-serif"],
       },
     },
   },

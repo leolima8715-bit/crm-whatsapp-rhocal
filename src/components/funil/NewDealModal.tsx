@@ -5,7 +5,7 @@ import { Loader2, X } from "lucide-react";
 import type { Owner, Stage } from "@/lib/inbox-types";
 
 const inputCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 text-sm outline-none focus:border-cyber-cyan";
+  "w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent";
 
 type ContactHit = { id: string; name: string | null; push_name: string | null; phone: string };
 
@@ -101,22 +101,22 @@ export default function NewDealModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 text-left">
-      <div className="w-full max-w-md rounded-lg border border-cyber-line bg-cyber-panel p-5">
+      <div className="w-full max-w-md rounded-lg border border-subtle bg-panel p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-bold">Novo negócio</h2>
-          <button onClick={onClose} aria-label="Fechar" className="text-cyber-white/60 hover:text-cyber-orange">
+          <button onClick={onClose} aria-label="Fechar" className="text-secondary hover:text-danger">
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={submit} className="space-y-4 text-sm">
           <div>
-            <span className="mb-1 block text-cyber-white/70">Contato</span>
+            <span className="mb-1 block text-secondary">Contato</span>
             {contact ? (
-              <div className="flex items-center justify-between rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2">
+              <div className="flex items-center justify-between rounded-lg border border-subtle bg-app px-3 py-2">
                 <span className="truncate">{contact.name}</span>
                 {!presetContact && (
-                  <button type="button" onClick={() => setContact(null)} className="text-xs text-cyber-cyan underline">
+                  <button type="button" onClick={() => setContact(null)} className="text-xs text-accent-text underline">
                     Trocar
                   </button>
                 )}
@@ -131,7 +131,7 @@ export default function NewDealModal({
                   className={inputCls}
                 />
                 {hits.length > 0 && (
-                  <ul className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-cyber-line bg-cyber-bg">
+                  <ul className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-subtle bg-app">
                     {hits.map((h) => (
                       <li key={h.id}>
                         <button
@@ -139,10 +139,10 @@ export default function NewDealModal({
                           onClick={() =>
                             setContact({ id: h.id, name: h.name || h.push_name || h.phone })
                           }
-                          className="w-full px-3 py-2 text-left hover:bg-cyber-panel"
+                          className="w-full px-3 py-2 text-left hover:bg-panel"
                         >
                           {h.name || h.push_name || "Sem nome"}{" "}
-                          <span className="font-mono text-xs text-cyber-white/50">{h.phone}</span>
+                          <span className="text-xs text-secondary">{h.phone}</span>
                         </button>
                       </li>
                     ))}
@@ -153,13 +153,13 @@ export default function NewDealModal({
           </div>
 
           <label className="block">
-            <span className="mb-1 block text-cyber-white/70">Título</span>
+            <span className="mb-1 block text-secondary">Título</span>
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} className={inputCls} />
           </label>
 
           <div className="flex gap-3">
             <label className="block flex-1">
-              <span className="mb-1 block text-cyber-white/70">Valor (R$)</span>
+              <span className="mb-1 block text-secondary">Valor (R$)</span>
               <input
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -169,7 +169,7 @@ export default function NewDealModal({
               />
             </label>
             <label className="block flex-1">
-              <span className="mb-1 block text-cyber-white/70">Etapa</span>
+              <span className="mb-1 block text-secondary">Etapa</span>
               <select value={stageId} onChange={(e) => setStageId(e.target.value)} className={inputCls}>
                 <option value="">Primeira etapa</option>
                 {stages.map((s) => (
@@ -183,7 +183,7 @@ export default function NewDealModal({
 
           {isGestor && owners.length > 0 && (
             <label className="block">
-              <span className="mb-1 block text-cyber-white/70">Responsável</span>
+              <span className="mb-1 block text-secondary">Responsável</span>
               <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} className={inputCls}>
                 <option value="">Eu mesmo</option>
                 {owners.map((o) => (
@@ -195,12 +195,12 @@ export default function NewDealModal({
             </label>
           )}
 
-          {error && <p className="text-sm text-cyber-orange">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
 
           <button
             type="submit"
             disabled={saving || !contact || !title.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg hover:opacity-90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {saving ? (
               <>

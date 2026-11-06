@@ -17,9 +17,9 @@ type Instance = {
 type Sector = { id: string; name: string; color: string | null };
 
 const statusUi: Record<Status, { text: string; cls: string }> = {
-  connected: { text: "Conectado", cls: "border-cyber-cyan/50 text-cyber-cyan" },
-  connecting: { text: "Conectando", cls: "border-cyber-amber/50 text-cyber-amber" },
-  disconnected: { text: "Desconectado", cls: "border-cyber-orange/50 text-cyber-orange" },
+  connected: { text: "Conectado", cls: "border-accent/50 text-accent-text" },
+  connecting: { text: "Conectando", cls: "border-warn/50 text-warn" },
+  disconnected: { text: "Desconectado", cls: "border-danger/50 text-danger" },
 };
 
 function qrSrc(qr: string) {
@@ -195,27 +195,27 @@ export default function NumerosManager({
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold">Números WhatsApp</h1>
-          <p className="text-sm text-cyber-white/60">Conecte e gerencie os números da operação.</p>
+          <p className="text-sm text-secondary">Conecte e gerencie os números da operação.</p>
         </div>
         <button
           onClick={() => {
             setError(null);
             setAddOpen(true);
           }}
-          className="flex items-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90"
+          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover"
         >
           <Plus size={16} /> Adicionar número
         </button>
       </div>
 
       {error && !qrFor && !addOpen && (
-        <p className="mb-4 rounded-lg border border-cyber-orange/40 px-4 py-2 text-sm text-cyber-orange">
+        <p className="mb-4 rounded-lg border border-danger/40 px-4 py-2 text-sm text-danger">
           {error}
         </p>
       )}
 
       {instances.length === 0 ? (
-        <p className="rounded-lg border border-cyber-line bg-cyber-panel p-8 text-center text-cyber-white/60">
+        <p className="rounded-lg border border-subtle bg-panel p-8 text-center text-secondary">
           Nenhum número cadastrado ainda. Clique em &quot;Adicionar número&quot; para começar.
         </p>
       ) : (
@@ -229,17 +229,17 @@ export default function NumerosManager({
               <li
                 key={inst.id}
                 style={sector ? { borderLeft: `6px solid ${sectorStyle(sector.color).stripe}` } : undefined}
-                className="rounded-lg border border-cyber-line bg-cyber-panel p-4"
+                className="rounded-lg border border-subtle bg-panel p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-bold">{inst.label}</p>
-                    <p className="font-mono text-xs text-cyber-white/60">
+                    <p className="text-xs text-secondary">
                       {inst.phone ? formatPhone(inst.phone) : "Aguardando conexão"}
                     </p>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-widest ${ui.cls}`}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest ${ui.cls}`}
                   >
                     {ui.text}
                   </span>
@@ -248,7 +248,7 @@ export default function NumerosManager({
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <SectorTag sector={info} />
                   {!sector && (
-                    <span className="text-xs font-bold text-[#FEB23D]">Defina o setor deste número</span>
+                    <span className="text-xs font-bold text-warn">Defina o setor deste número</span>
                   )}
                 </div>
 
@@ -260,7 +260,7 @@ export default function NumerosManager({
                       value={sector ? sector.id : ""}
                       onChange={(e) => changeSector(inst, e.target.value)}
                       aria-label="Setor do número"
-                      className="min-w-0 flex-1 rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-sm outline-none focus:border-cyber-cyan"
+                      className="min-w-0 flex-1 rounded-lg border border-subtle bg-app px-2 py-1.5 text-sm outline-none focus:border-accent"
                     >
                       <option value="" disabled>
                         Selecione o setor
@@ -274,7 +274,7 @@ export default function NumerosManager({
                     <button
                       onClick={() => setEditSectorId(null)}
                       aria-label="Cancelar"
-                      className="text-cyber-white/60 hover:text-cyber-orange"
+                      className="text-secondary hover:text-danger"
                     >
                       <X size={16} />
                     </button>
@@ -287,10 +287,10 @@ export default function NumerosManager({
                     onClick={() => setEditSectorId(inst.id)}
                     style={
                       !sector
-                        ? { borderColor: "#FEB23D", color: "#FEB23D", backgroundColor: "rgba(254,178,61,0.12)" }
+                        ? { borderColor: "rgb(var(--c-warn))", color: "rgb(var(--c-warn))", backgroundColor: "rgb(var(--c-warn) / 0.12)" }
                         : undefined
                     }
-                    className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary transition hover:border-accent hover:text-accent-text disabled:opacity-50"
                   >
                     <Tag size={14} /> Alterar setor
                   </button>
@@ -298,7 +298,7 @@ export default function NumerosManager({
                     <button
                       disabled={busy}
                       onClick={() => openQr(inst)}
-                      className="flex items-center gap-2 rounded-lg border border-cyber-cyan/50 px-3 py-1.5 text-sm text-cyber-cyan transition hover:bg-cyber-cyan/10 disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-lg border border-accent/50 px-3 py-1.5 text-sm text-accent-text transition hover:bg-accent/10 disabled:opacity-50"
                     >
                       <QrCode size={14} /> Conectar / Mostrar QR
                     </button>
@@ -306,7 +306,7 @@ export default function NumerosManager({
                     <button
                       disabled={busy}
                       onClick={() => action(inst, "logout")}
-                      className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-orange hover:text-cyber-orange disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary transition hover:border-danger hover:text-danger disabled:opacity-50"
                     >
                       <Unplug size={14} /> Desconectar
                     </button>
@@ -314,11 +314,11 @@ export default function NumerosManager({
                   <button
                     disabled={busy}
                     onClick={() => action(inst, "archive")}
-                    className="flex items-center gap-2 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 transition hover:border-cyber-amber hover:text-cyber-amber disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary transition hover:border-warn hover:text-warn disabled:opacity-50"
                   >
                     <Archive size={14} /> Arquivar
                   </button>
-                  {busy && <Loader2 size={16} className="animate-spin self-center text-cyber-cyan" />}
+                  {busy && <Loader2 size={16} className="animate-spin self-center text-accent-text" />}
                 </div>
               </li>
             );
@@ -330,23 +330,23 @@ export default function NumerosManager({
         <Modal title="Adicionar número" onClose={() => !creating && setAddOpen(false)}>
           <form onSubmit={handleCreate} className="space-y-4">
             <label className="block text-sm">
-              <span className="mb-1 block text-cyber-white/70">Nome do número</span>
+              <span className="mb-1 block text-secondary">Nome do número</span>
               <input
                 autoFocus
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="Ex.: Comercial - Joyce"
                 maxLength={60}
-                className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 outline-none focus:border-cyber-cyan"
+                className="w-full rounded-lg border border-subtle bg-app px-3 py-2 outline-none focus:border-accent"
               />
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block text-cyber-white/70">Setor *</span>
+              <span className="mb-1 block text-secondary">Setor *</span>
               <select
                 required
                 value={sectorId}
                 onChange={(e) => setSectorId(e.target.value)}
-                className="w-full rounded-lg border border-cyber-line bg-cyber-bg px-3 py-2 outline-none focus:border-cyber-cyan"
+                className="w-full rounded-lg border border-subtle bg-app px-3 py-2 outline-none focus:border-accent"
               >
                 <option value="">Selecione o setor</option>
                 {sectors.map((x) => (
@@ -356,16 +356,16 @@ export default function NumerosManager({
                 ))}
               </select>
               {sectors.length === 0 && (
-                <span className="mt-1 block text-xs text-[#FEB23D]">
+                <span className="mt-1 block text-xs text-warn">
                   Cadastre um setor em Usuários antes de adicionar números.
                 </span>
               )}
             </label>
-            {error && <p className="text-sm text-cyber-orange">{error}</p>}
+            {error && <p className="text-sm text-danger">{error}</p>}
             <button
               type="submit"
               disabled={creating || !label.trim() || !sectorId}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyber-cyan px-4 py-2 text-sm font-bold text-cyber-bg transition hover:opacity-90 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover disabled:opacity-50"
             >
               {creating ? (
                 <>
@@ -398,25 +398,25 @@ export default function NumerosManager({
             </div>
 
             {pairing && (
-              <p className="font-mono text-sm text-cyber-cyan">Código de pareamento: {pairing}</p>
+              <p className="text-sm text-accent-text">Código de pareamento: {pairing}</p>
             )}
 
-            {error && <p className="text-sm text-cyber-orange">{error}</p>}
+            {error && <p className="text-sm text-danger">{error}</p>}
 
-            <ol className="list-inside list-decimal space-y-1 text-sm text-cyber-white/70">
+            <ol className="list-inside list-decimal space-y-1 text-sm text-secondary">
               <li>Abra o WhatsApp no celular</li>
               <li>Vá em Aparelhos conectados &gt; Conectar um aparelho</li>
               <li>Aponte a câmera para este QR Code</li>
             </ol>
 
-            <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-cyber-amber">
+            <p className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-warn">
               <Loader2 size={12} className="animate-spin" /> Aguardando leitura · QR renovado a cada 30s
             </p>
 
             <button
               onClick={() => fetchQr(qrFor.id)}
               disabled={qrLoading}
-              className="text-sm text-cyber-cyan underline disabled:opacity-50"
+              className="text-sm text-accent-text underline disabled:opacity-50"
             >
               Gerar novo QR agora
             </button>
@@ -438,13 +438,13 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-cyber-line bg-cyber-panel p-5">
+      <div className="w-full max-w-sm rounded-lg border border-subtle bg-panel p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-bold">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="text-cyber-white/60 hover:text-cyber-orange"
+            className="text-secondary hover:text-danger"
           >
             <X size={18} />
           </button>

@@ -28,9 +28,9 @@ export default async function FunilPage() {
 
   return (
     <main className="flex h-screen flex-col">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-cyber-line bg-cyber-panel px-5">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-subtle bg-panel px-5">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-cyber-cyan">
+          <p className="text-[10px] uppercase tracking-widest text-accent-text">
             CRM WhatsApp · RHOCAL
           </p>
           <p className="text-sm font-bold">Funil de conversas · {profile.full_name}</p>
@@ -38,7 +38,7 @@ export default async function FunilPage() {
 
         <Link
           href="/inbox"
-          className="rounded-lg border border-cyber-line px-4 py-2 text-sm text-cyber-white/80 transition hover:border-cyber-cyan hover:text-cyber-cyan"
+          className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
         >
           Voltar ao Inbox
         </Link>

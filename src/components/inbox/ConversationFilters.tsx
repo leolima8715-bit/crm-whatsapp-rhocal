@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Filter, Plus, X } from "lucide-react";
+import { Filter, Plus, Search, X } from "lucide-react";
 import type { Assignee, StageRow } from "@/lib/inbox-types";
 import { alpha, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import type { Filters, StatusFilter, Tab } from "./ConversationList";
@@ -24,11 +24,11 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
 };
 
 const selectCls =
-  "w-full rounded-lg border border-cyber-line bg-cyber-bg px-2 py-1.5 text-xs outline-none focus:border-cyber-cyan";
-const sectionCls = "font-mono text-[10px] uppercase tracking-widest text-cyber-cyan";
+  "w-full rounded-lg border border-subtle bg-app px-2 py-1.5 text-xs outline-none focus:border-accent";
+const sectionCls = "text-[10px] uppercase tracking-widest text-accent-text";
 const pillCls = "rounded-full border px-2.5 py-1 text-[11px] leading-tight transition";
-const pillOn = "border-cyber-cyan bg-cyber-cyan/10 text-cyber-cyan";
-const pillOff = "border-cyber-line text-cyber-white/70 hover:border-cyber-cyan/50";
+const pillOn = "border-accent bg-accent/10 text-accent-text";
+const pillOff = "border-subtle text-secondary hover:border-accent/50";
 
 type Props = {
   search: string;
@@ -118,15 +118,18 @@ export default function ConversationFilters({
   ];
 
   return (
-    <div className="relative shrink-0 border-b border-cyber-line">
+    <div className="relative shrink-0 border-b border-subtle">
       <div className="flex items-center gap-2 p-2">
-        <input
-          type="search"
-          placeholder="Buscar por nome ou telefone..."
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-cyber-line bg-cyber-bg px-3 py-1.5 text-sm outline-none focus:border-cyber-cyan"
-        />
+        <div className="relative min-w-0 flex-1">
+          <Search size={15} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+          <input
+            type="search"
+            placeholder="Buscar por nome ou telefone..."
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            className="w-full rounded-full border border-transparent bg-panel py-2 pl-9 pr-3 text-sm outline-none placeholder:text-secondary focus:border-accent"
+          />
+        </div>
         <button
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
@@ -139,7 +142,7 @@ export default function ConversationFilters({
           <Filter size={14} />
           <span className="hidden sm:inline">Filtros</span>
           {active.length > 0 && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-cyber-cyan px-1 font-mono text-[10px] font-bold text-cyber-bg">
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-on-accent">
               {active.length}
             </span>
           )}
@@ -148,7 +151,7 @@ export default function ConversationFilters({
           onClick={onNewConversation}
           aria-label="Nova conversa"
           title="Nova conversa"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyber-cyan text-cyber-bg transition hover:opacity-90"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-on-accent transition hover:bg-accent-hover"
         >
           <Plus size={18} />
         </button>
@@ -159,20 +162,20 @@ export default function ConversationFilters({
           {active.map((a) => (
             <span
               key={a.key}
-              className="flex max-w-full items-center gap-1 rounded-full border border-cyber-line bg-cyber-bg py-0.5 pl-2 pr-1 text-[11px] leading-tight"
+              className="flex max-w-full items-center gap-1 rounded-full border border-subtle bg-app py-0.5 pl-2 pr-1 text-[11px] leading-tight"
             >
               {a.color && (
                 <span
                   aria-hidden
                   style={{ backgroundColor: a.color }}
-                  className="h-2 w-2 shrink-0 rounded-full border border-cyber-white/30"
+                  className="h-2 w-2 shrink-0 rounded-full border border-secondary/50"
                 />
               )}
               <span className="truncate">{a.label}</span>
               <button
                 onClick={a.clear}
                 aria-label={`Remover filtro ${a.label}`}
-                className="rounded-full p-0.5 text-cyber-white/60 hover:text-cyber-orange"
+                className="rounded-full p-0.5 text-secondary hover:text-danger"
               >
                 <X size={11} />
               </button>
@@ -180,7 +183,7 @@ export default function ConversationFilters({
           ))}
           <button
             onClick={() => onFilters(DEFAULT_FILTERS)}
-            className="px-1 text-[11px] text-cyber-cyan underline"
+            className="px-1 text-[11px] text-accent-text underline"
           >
             Limpar
           </button>
@@ -197,7 +200,7 @@ export default function ConversationFilters({
           <div
             role="dialog"
             aria-label="Filtros"
-            className="fixed inset-x-0 bottom-0 z-30 max-h-[80vh] overflow-y-auto rounded-t-xl border border-cyber-line bg-cyber-panel p-3 shadow-2xl md:absolute md:inset-x-2 md:bottom-auto md:top-full md:mt-1 md:max-h-[70vh] md:rounded-lg"
+            className="fixed inset-x-0 bottom-0 z-30 max-h-[80vh] overflow-y-auto rounded-t-xl border border-subtle bg-panel p-3 shadow-2xl md:absolute md:inset-x-2 md:bottom-auto md:top-full md:mt-1 md:max-h-[70vh] md:rounded-lg"
           >
             <div className="space-y-3">
               {sectorChips.length > 0 && (
@@ -222,13 +225,13 @@ export default function ConversationFilters({
                           aria-pressed={on}
                           style={on ? { borderColor: st.stripe, backgroundColor: st.bg } : undefined}
                           className={`flex items-center gap-1.5 ${pillCls} ${
-                            on ? "text-cyber-white" : "border-cyber-line text-cyber-white/70 hover:border-cyber-white/30"
+                            on ? "text-primary" : "border-subtle text-secondary hover:border-secondary/50"
                           }`}
                         >
                           <span
                             aria-hidden
                             style={{ backgroundColor: st.stripe }}
-                            className="h-2 w-2 shrink-0 rounded-full border border-cyber-white/30"
+                            className="h-2 w-2 shrink-0 rounded-full border border-secondary/50"
                           />
                           <span className="truncate">{s.name}</span>
                         </button>
@@ -250,9 +253,9 @@ export default function ConversationFilters({
                       }`}
                     >
                       {TAB_LABEL[t.id]}
-                      <span className="ml-1 font-mono">{t.count}</span>
+                      <span className="ml-1">{t.count}</span>
                       {t.extra ? (
-                        <span className="ml-1 rounded-full bg-cyber-orange px-1.5 font-bold text-cyber-bg">
+                        <span className="ml-1 rounded-full bg-accent px-1.5 font-bold text-on-accent">
                           {t.extra}
                         </span>
                       ) : null}
@@ -297,7 +300,7 @@ export default function ConversationFilters({
                           aria-pressed={on}
                           style={on ? { borderColor: s.color, backgroundColor: alpha(s.color, 0.15) } : undefined}
                           className={`flex items-center gap-1.5 ${pillCls} ${
-                            on ? "text-cyber-white" : "border-cyber-line text-cyber-white/70 hover:border-cyber-white/30"
+                            on ? "text-primary" : "border-subtle text-secondary hover:border-secondary/50"
                           }`}
                         >
                           <span aria-hidden style={{ backgroundColor: s.color }} className="h-2 w-2 shrink-0 rounded-full" />
@@ -347,16 +350,16 @@ export default function ConversationFilters({
               )}
             </div>
 
-            <div className="mt-3 flex gap-2 border-t border-cyber-line pt-3">
+            <div className="mt-3 flex gap-2 border-t border-subtle pt-3">
               <button
                 onClick={() => onFilters(DEFAULT_FILTERS)}
-                className="flex-1 rounded-lg border border-cyber-line px-3 py-1.5 text-sm text-cyber-white/80 hover:border-cyber-cyan hover:text-cyber-cyan"
+                className="flex-1 rounded-lg border border-subtle px-3 py-1.5 text-sm text-primary hover:border-accent hover:text-accent-text"
               >
                 Limpar
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="flex-1 rounded-lg bg-cyber-cyan px-3 py-1.5 text-sm font-bold text-cyber-bg hover:opacity-90"
+                className="flex-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-bold text-on-accent hover:bg-accent-hover"
               >
                 Aplicar
               </button>
