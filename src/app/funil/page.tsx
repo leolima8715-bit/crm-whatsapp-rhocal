@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadFunilData } from "@/lib/funil-server";
+import ThemeToggle from "@/components/ThemeToggle";
 import LogoutButton from "@/components/LogoutButton";
 import FunilBoard from "@/components/funil/FunilBoard";
 
@@ -43,7 +44,13 @@ export default async function FunilPage() {
           Voltar ao Inbox
         </Link>
 
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+
+          <ThemeToggle />
+
+          <LogoutButton />
+
+        </div>
       </header>
 
       <FunilBoard

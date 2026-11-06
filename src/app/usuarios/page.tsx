@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listOrgUsers } from "@/lib/users";
+import ThemeToggle from "@/components/ThemeToggle";
 import LogoutButton from "@/components/LogoutButton";
 import UsuariosManager from "@/components/usuarios/UsuariosManager";
 
@@ -52,7 +53,13 @@ export default async function UsuariosPage() {
           Voltar ao Inbox
         </Link>
 
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+
+          <ThemeToggle />
+
+          <LogoutButton />
+
+        </div>
       </header>
 
       <UsuariosManager

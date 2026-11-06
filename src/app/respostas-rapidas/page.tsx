@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import ThemeToggle from "@/components/ThemeToggle";
 import LogoutButton from "@/components/LogoutButton";
 import QuickRepliesManager from "@/components/respostas/QuickRepliesManager";
 
@@ -46,7 +47,13 @@ export default async function RespostasRapidasPage() {
           Voltar ao Inbox
         </Link>
 
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+
+          <ThemeToggle />
+
+          <LogoutButton />
+
+        </div>
       </header>
 
       <QuickRepliesManager

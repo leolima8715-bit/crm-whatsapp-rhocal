@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import ThemeToggle from "@/components/ThemeToggle";
 import LogoutButton from "@/components/LogoutButton";
 import ContaForm from "@/components/conta/ContaForm";
 
@@ -37,7 +38,13 @@ export default async function ContaPage() {
           Voltar ao Inbox
         </Link>
 
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+
+          <ThemeToggle />
+
+          <LogoutButton />
+
+        </div>
       </header>
 
       <ContaForm name={profile?.full_name ?? ""} email={user.email ?? ""} />
