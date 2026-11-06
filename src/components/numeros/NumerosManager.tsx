@@ -65,6 +65,17 @@ export default function NumerosManager({
 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [statusOverride, setStatusOverride] = useState<Record<string, Status>>({});
+
+  // Dados do servidor chegaram: o override otimista não é mais necessário.
+  useEffect(() => setStatusOverride({}), [instances]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const closeRef = useRef<() => void>(() => {});
 
@@ -180,11 +191,14 @@ export default function NumerosManager({
     if (!window.confirm(msg)) return;
     setBusyId(inst.id);
     setError(null);
+    setToast(null);
     try {
       await api(`/api/instances/${inst.id}/${kind}`, { method: "POST" });
+      if (kind === "logout") setStatusOverride((o) => ({ ...o, [inst.id]: "disconnected" }));
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      setToast((err as Error).message || "Não foi possível concluir a ação.");
+      router.refresh();
     } finally {
       setBusyId(null);
     }
@@ -208,6 +222,18 @@ export default function NumerosManager({
         </button>
       </div>
 
+      {toast && (
+        <div
+          role="alert"
+          className="fixed bottom-5 right-5 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-danger/40 bg-panel px-4 py-3 text-sm text-danger shadow-xl"
+        >
+          <span className="flex-1">{toast}</span>
+          <button onClick={() => setToast(null)} aria-label="Fechar" className="text-secondary hover:text-primary">
+            ×
+          </button>
+        </div>
+      )}
+
       {error && !qrFor && !addOpen && (
         <p className="mb-4 rounded-lg border border-danger/40 px-4 py-2 text-sm text-danger">
           {error}
@@ -221,7 +247,7 @@ export default function NumerosManager({
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {instances.map((inst) => {
-            const ui = statusUi[inst.status];
+            const ui = statusUi[statusOverride[inst.id] ?? inst.status];
             const busy = busyId === inst.id;
             const sector = sectors.find((x) => x.id === inst.sector_id);
             const info = sectorInfo(sector);
@@ -294,7 +320,7 @@ export default function NumerosManager({
                   >
                     <Tag size={14} /> Alterar setor
                   </button>
-                  {inst.status !== "connected" ? (
+                  {(statusOverride[inst.id] ?? inst.status) !== "connected" ? (
                     <button
                       disabled={busy}
                       onClick={() => openQr(inst)}
