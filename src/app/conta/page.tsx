@@ -17,7 +17,7 @@ export default async function ContaPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, must_change_password")
     .eq("id", user.id)
     .single();
 
@@ -31,12 +31,14 @@ export default async function ContaPage() {
           <p className="text-sm font-bold">Minha conta</p>
         </div>
 
-        <Link
-          href="/inbox"
-          className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
-        >
-          Voltar ao Inbox
-        </Link>
+        {profile?.must_change_password !== true && (
+          <Link
+            href="/inbox"
+            className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
+          >
+            Voltar ao Inbox
+          </Link>
+        )}
 
         <div className="flex items-center gap-3">
 
@@ -47,7 +49,11 @@ export default async function ContaPage() {
         </div>
       </header>
 
-      <ContaForm name={profile?.full_name ?? ""} email={user.email ?? ""} />
+      <ContaForm
+        name={profile?.full_name ?? ""}
+        email={user.email ?? ""}
+        mustChange={profile?.must_change_password === true}
+      />
     </main>
   );
 }

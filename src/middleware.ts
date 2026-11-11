@@ -44,6 +44,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Troca obrigatória de senha: só /conta, a rota de troca, o logout (client -> /login) e a API de senha.
+  if (user && !isPublic) {
+    const allowed =
+      path === "/conta" ||
+      path.startsWith("/conta/") ||
+      path === "/api/account/password";
+    if (!allowed) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("must_change_password")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (prof?.must_change_password === true) {
+        if (path.startsWith("/api/")) {
+          return NextResponse.json(
+            { error: "Defina sua nova senha para continuar." },
+            { status: 403 }
+          );
+        }
+        const url = request.nextUrl.clone();
+        url.pathname = "/conta";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   return response;
 }
 

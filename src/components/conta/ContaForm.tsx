@@ -6,7 +6,15 @@ import { Loader2 } from "lucide-react";
 const inputCls =
   "w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent";
 
-export default function ContaForm({ name, email }: { name: string; email: string }) {
+export default function ContaForm({
+  name,
+  email,
+  mustChange = false,
+}: {
+  name: string;
+  email: string;
+  mustChange?: boolean;
+}) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -17,8 +25,8 @@ export default function ContaForm({ name, email }: { name: string; email: string
     e.preventDefault();
     setError(null);
     setDone(false);
-    if (password.length < 8) {
-      setError("A senha deve ter no mínimo 8 caracteres.");
+    if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      setError("A senha deve ter no mínimo 10 caracteres, com letras e números.");
       return;
     }
     if (password !== confirm) {
@@ -37,6 +45,7 @@ export default function ContaForm({ name, email }: { name: string; email: string
       setPassword("");
       setConfirm("");
       setDone(true);
+      window.location.href = "/inbox";
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -46,6 +55,11 @@ export default function ContaForm({ name, email }: { name: string; email: string
 
   return (
     <section className="mx-auto w-full max-w-md flex-1 p-5">
+      {mustChange && (
+        <p className="mb-4 rounded-lg border border-warn/50 px-4 py-3 text-sm font-bold text-warn">
+          Defina sua nova senha para começar a usar o CRM
+        </p>
+      )}
       <div className="mb-6 rounded-lg border border-subtle bg-panel p-4">
         <p className="font-bold">{name || "Sem nome"}</p>
         <p className="text-xs text-secondary">{email}</p>
@@ -55,7 +69,7 @@ export default function ContaForm({ name, email }: { name: string; email: string
         <h1 className="font-bold">Trocar senha</h1>
 
         <label className="block text-sm">
-          <span className="mb-1 block text-secondary">Nova senha (mínimo 8 caracteres)</span>
+          <span className="mb-1 block text-secondary">Nova senha (mínimo 10 caracteres, com letras e números)</span>
           <input
             type="password"
             value={password}

@@ -10,6 +10,7 @@ export type OrgUser = {
   full_name: string;
   role: Role;
   active: boolean;
+  must_change_password: boolean;
   sector_ids: string[];
   created_at: string;
 };
@@ -99,7 +100,7 @@ export async function listOrgUsers(orgId: string): Promise<OrgUser[]> {
 
   const { data: profiles, error } = await admin
     .from("profiles")
-    .select("id, full_name, role, active, created_at")
+    .select("id, full_name, role, active, must_change_password, created_at")
     .eq("org_id", orgId)
     .order("full_name", { ascending: true });
   if (error) throw new HttpError("Erro ao listar os usuários.", 500);
@@ -131,6 +132,7 @@ export async function listOrgUsers(orgId: string): Promise<OrgUser[]> {
     full_name: p.full_name,
     role: p.role as Role,
     active: p.active,
+    must_change_password: p.must_change_password === true,
     sector_ids: sectorsByProfile.get(p.id) ?? [],
     created_at: p.created_at,
   }));

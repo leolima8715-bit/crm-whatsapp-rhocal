@@ -153,9 +153,15 @@ export default function UsuariosManager({
               </div>
 
               <p className="mt-2 text-xs text-secondary">
-                Setores:{" "}
-                {sectorNames(u.sector_ids).join(", ") || "nenhum"}
+                Setor:{" "}
+                {sectorNames(u.sector_ids).join(", ") ||
+                  (u.role === "gestor" ? "todos (gestor)" : "nenhum")}
               </p>
+              {u.must_change_password && (
+                <span className="mt-2 inline-block rounded-full border border-warn/50 px-3 py-1 text-[10px] uppercase tracking-widest text-warn">
+                  Troca de senha pendente
+                </span>
+              )}
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
