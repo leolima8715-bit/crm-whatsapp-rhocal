@@ -83,11 +83,15 @@ export async function POST(req: Request) {
     // Client do usuário: a RLS decide se ele pode usar este número.
     const { data: inst } = await supabase
       .from("whatsapp_instances")
-      .select("id, org_id, status, archived, evolution_instance, sector_id")
+      .select("id, org_id, owner_id, status, archived, evolution_instance, sector_id")
       .eq("id", instanceId)
       .maybeSingle();
     if (!inst || inst.archived || inst.org_id !== profile.org_id) {
       throw new HttpError("Número não encontrado ou sem permissão de uso.", 404);
+    }
+    // Não gestor só inicia conversa pelos chips de que é dono; gestor, por qualquer chip.
+    if (profile.role !== "gestor" && inst.owner_id !== user.id) {
+      throw new HttpError("Você só pode iniciar conversas pelos números dos quais é dono.", 403);
     }
     if (inst.status !== "connected") throw new HttpError("Este número não está conectado.", 409);
 

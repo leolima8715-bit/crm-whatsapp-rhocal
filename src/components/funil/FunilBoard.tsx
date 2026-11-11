@@ -229,7 +229,11 @@ export default function FunilBoard({
 
     const onConversation = async (row: Partial<ConversationRow> & { id: string }) => {
       const existing = conversationsRef.current.find((c) => c.id === row.id);
-      if (!existing || (row.sector_id !== undefined && row.sector_id !== existing.sector_id)) {
+      if (
+        !existing ||
+        (row.sector_id !== undefined && row.sector_id !== existing.sector_id) ||
+        (row.assigned_to !== undefined && row.assigned_to !== existing.assigned_to)
+      ) {
         revalidate();
         return;
       }

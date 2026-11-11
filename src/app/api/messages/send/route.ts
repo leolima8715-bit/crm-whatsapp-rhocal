@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireUser } from "@/lib/auth";
+import { loadInstanceName } from "@/lib/conversations-server";
 import { evolutionFetch } from "@/lib/evolution";
 import { MESSAGE_SELECT } from "@/lib/inbox-queries";
 import { applyMessageAutomation } from "@/lib/stages";
@@ -25,20 +26,18 @@ export async function POST(req: Request) {
     // Client do usuário: a RLS garante que ele só envia em conversas que enxerga.
     const { data: conv } = await supabase
       .from("conversations")
-      .select("id, org_id, contact:contacts(phone), instance:whatsapp_instances(evolution_instance)")
+      .select("id, org_id, instance_id, contact:contacts(phone)")
       .eq("id", conversationId)
       .maybeSingle();
     if (!conv) throw new HttpError("Conversa não encontrada.", 404);
 
     const contact = one(conv.contact as { phone: string } | { phone: string }[] | null);
-    const instance = one(
-      conv.instance as { evolution_instance: string } | { evolution_instance: string }[] | null
-    );
-    if (!contact?.phone || !instance?.evolution_instance) {
+    const admin = createAdminClient();
+    const instance = { evolution_instance: await loadInstanceName(admin, conv.instance_id, conv.org_id) };
+    if (!contact?.phone || !instance.evolution_instance) {
       throw new HttpError("Conversa sem contato ou número de origem.", 422);
     }
 
-    const admin = createAdminClient();
     const base = {
       org_id: conv.org_id,
       conversation_id: conv.id,

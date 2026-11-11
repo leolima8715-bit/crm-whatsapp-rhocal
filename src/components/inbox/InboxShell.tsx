@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
 import {
+  isUnassignedForUser,
   ownerIdOf,
   type Assignee,
   type ConversationRow,
@@ -98,13 +99,21 @@ export default function InboxShell({
       timer = setTimeout(async () => {
         timer = null;
         const fresh = await fetchConversations(supabase, 100);
+        // A conversa aberta fora das 100 mais recentes só é mantida se a RLS ainda a liberar.
+        const sel = selectedRef.current;
+        const extra =
+          sel && !fresh.some((f) => f.id === sel) ? await fetchConversation(supabase, sel) : null;
+        if (sel && !fresh.some((f) => f.id === sel) && !extra) {
+          setSelectedId(null);
+          setNotice("Você não tem mais acesso a esta conversa.");
+        }
         setConversations((prev) => {
           const unread = new Map(prev.map((c) => [c.id, c.unread_count]));
-          const kept = prev.filter((c) => !fresh.some((f) => f.id === c.id));
-          return sortConversations([
-            ...fresh.map((f) => (f.id === selectedRef.current ? { ...f, unread_count: unread.get(f.id) ?? 0 } : f)),
-            ...kept.filter((c) => c.id === selectedRef.current),
-          ]);
+          return sortConversations(
+            [...fresh, ...(extra ? [extra] : [])].map((f) =>
+              f.id === selectedRef.current ? { ...f, unread_count: unread.get(f.id) ?? 0 } : f
+            )
+          );
         });
         loadAssignees();
       }, 300);
@@ -349,16 +358,16 @@ export default function InboxShell({
       all: base.length,
       mine: mine.length,
       mineUnread: mine.filter((c) => c.unread_count > 0).length,
-      unassigned: base.filter((c) => !ownerIdOf(c)).length,
+      unassigned: base.filter((c) => isUnassignedForUser(c, currentUserId, isGestor)).length,
     };
-  }, [base, currentUserId]);
+  }, [base, currentUserId, isGestor]);
 
   const filtered = useMemo(() => {
     const byTab = base.filter((c) =>
       filters.tab === "mine"
         ? ownerIdOf(c) === currentUserId
         : filters.tab === "unassigned"
-          ? !ownerIdOf(c)
+          ? isUnassignedForUser(c, currentUserId, isGestor)
           : true
     );
     const term = search.trim().toLowerCase();
@@ -369,7 +378,7 @@ export default function InboxShell({
       const phone = c.contact?.phone ?? "";
       return name.includes(term) || (digits.length > 0 && phone.includes(digits));
     });
-  }, [base, filters.tab, search, currentUserId]);
+  }, [base, filters.tab, search, currentUserId, isGestor]);
 
   // Chips de setor: gestor vê todos; os demais só os setores presentes nas conversas acessíveis.
   const sectorChips = useMemo(() => {

@@ -59,6 +59,23 @@ export async function recordTransfer(
   }
 }
 
+// Nome da instância Evolution do chip da conversa. O acesso à CONVERSA já foi decidido pela RLS
+// (can_access_conversation); o chip é lido com o admin client porque quem vê a conversa pelo contato
+// ou por assigned_to pode não ser dono do chip.
+export async function loadInstanceName(
+  admin: Admin,
+  instanceId: string,
+  orgId: string
+): Promise<string | null> {
+  const { data } = await admin
+    .from("whatsapp_instances")
+    .select("evolution_instance")
+    .eq("id", instanceId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  return (data?.evolution_instance as string | undefined) ?? null;
+}
+
 export async function conversationPayload(admin: Admin, id: string) {
   return fetchConversation(admin, id);
 }

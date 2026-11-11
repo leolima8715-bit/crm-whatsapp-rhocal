@@ -9,16 +9,18 @@ function one<T>(v: T | T[] | null | undefined): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
 }
 
-// Números conectados que o usuário pode usar (a RLS do client dele decide quais enxerga).
+// Números conectados para iniciar conversa (RLS do client + regra: não gestor só os próprios).
 export async function GET() {
   try {
-    const { supabase } = await requireProfile();
-    const { data, error } = await supabase
+    const { supabase, user, profile } = await requireProfile();
+    let query = supabase
       .from("whatsapp_instances")
       .select("id, label, phone, sector:sectors(id, name, color)")
       .eq("status", "connected")
-      .eq("archived", false)
-      .order("label", { ascending: true });
+      .eq("archived", false);
+    // Nova conversa: gestor usa qualquer chip; os demais, só os chips de que são donos.
+    if (profile.role !== "gestor") query = query.eq("owner_id", user.id);
+    const { data, error } = await query.order("label", { ascending: true });
     if (error) throw new Error("Erro ao listar números.");
 
     return NextResponse.json({

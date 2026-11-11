@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireUser } from "@/lib/auth";
 import { BUCKET, fileNameFromPath } from "@/lib/media";
+import { loadInstanceName } from "@/lib/conversations-server";
 import { MEDIA_TYPES, downloadAndStoreMedia } from "@/lib/media-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/users";
@@ -28,15 +29,10 @@ export async function GET(req: Request, { params }: { params: { messageId: strin
     if (!path && msg.direction === "in" && msg.external_id) {
       const { data: conv } = await supabase
         .from("conversations")
-        .select("instance:whatsapp_instances(evolution_instance)")
+        .select("instance_id")
         .eq("id", msg.conversation_id)
         .maybeSingle();
-      const inst = conv?.instance as
-        | { evolution_instance: string }
-        | { evolution_instance: string }[]
-        | null
-        | undefined;
-      const instanceName = Array.isArray(inst) ? inst[0]?.evolution_instance : inst?.evolution_instance;
+      const instanceName = conv ? await loadInstanceName(admin, conv.instance_id, msg.org_id) : null;
 
       if (instanceName) {
         const ok = await downloadAndStoreMedia(admin, {

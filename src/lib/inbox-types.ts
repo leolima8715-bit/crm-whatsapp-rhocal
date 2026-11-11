@@ -25,6 +25,7 @@ export type ConversationRow = {
   instance: {
     label: string;
     phone: string | null;
+    owner_id?: string | null;
     sector_id: string | null;
     sector: { id: string; name: string; color: string | null } | null;
   } | null;
@@ -49,6 +50,17 @@ export type MessageRow = {
 };
 
 // Responsável = dono do CONTATO (contacts.owner_id); assigned_to é só o espelho.
+// "Sem responsável" na visão do usuário: gestor vê todas as sem responsável; os demais,
+// só as sem responsável do PRÓPRIO chip (conversas de outros chips não entram nessa aba).
+export function isUnassignedForUser(
+  c: Pick<ConversationRow, "contact" | "assigned_to" | "instance">,
+  userId: string,
+  isGestor: boolean
+): boolean {
+  if (ownerIdOf(c) !== null) return false;
+  return isGestor || c.instance?.owner_id === userId;
+}
+
 export function ownerIdOf(c: Pick<ConversationRow, "contact" | "assigned_to">): string | null {
   return c.contact && c.contact.owner_id !== undefined ? c.contact.owner_id : c.assigned_to;
 }

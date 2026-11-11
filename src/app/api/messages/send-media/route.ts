@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireUser } from "@/lib/auth";
+import { loadInstanceName } from "@/lib/conversations-server";
 import { evolutionFetch } from "@/lib/evolution";
 import { MESSAGE_SELECT } from "@/lib/inbox-queries";
 import { BUCKET, MAX_BYTES, baseMime, isAllowedMime } from "@/lib/media";
@@ -35,16 +36,15 @@ export async function POST(req: Request) {
 
     const { data: conv } = await supabase
       .from("conversations")
-      .select("id, org_id, contact:contacts(phone), instance:whatsapp_instances(evolution_instance)")
+      .select("id, org_id, instance_id, contact:contacts(phone)")
       .eq("id", conversationId)
       .maybeSingle();
     if (!conv) throw new HttpError("Conversa não encontrada.", 404);
 
     const contact = one(conv.contact as { phone: string } | { phone: string }[] | null);
-    const instance = one(
-      conv.instance as { evolution_instance: string } | { evolution_instance: string }[] | null
-    );
-    if (!contact?.phone || !instance?.evolution_instance) {
+    const admin = createAdminClient();
+    const instance = { evolution_instance: await loadInstanceName(admin, conv.instance_id, conv.org_id) };
+    if (!contact?.phone || !instance.evolution_instance) {
       throw new HttpError("Conversa sem contato ou número de origem.", 422);
     }
 
@@ -54,7 +54,6 @@ export async function POST(req: Request) {
       throw new HttpError("Arquivo inválido para esta conversa.", 400);
     }
 
-    const admin = createAdminClient();
     const objectName = path.slice(dir.length + 1);
     const { data: listed } = await admin.storage.from(BUCKET).list(dir, { search: objectName, limit: 10 });
     const obj = (listed ?? []).find((o) => o.name === objectName);
@@ -81,7 +80,7 @@ export async function POST(req: Request) {
       sent_by: user.id,
     };
 
-    const evo = encodeURIComponent(instance.evolution_instance);
+    const evo = encodeURIComponent(instance.evolution_instance as string);
     let externalId: string | null = null;
     try {
       const res =
