@@ -35,6 +35,18 @@ export default async function InboxPage({
     .eq("id", user.id)
     .single();
 
+  // Não gestor que é dono de algum chip também acessa /numeros (importar contatos).
+  let ownsInstance = false;
+  if (profile && profile.role !== "gestor") {
+    const { data: owned } = await supabase
+      .from("whatsapp_instances")
+      .select("id")
+      .eq("owner_id", user.id)
+      .eq("archived", false)
+      .limit(1);
+    ownsInstance = !!owned?.length;
+  }
+
   const conversations = profile ? await fetchConversations(supabase, 100) : [];
 
   // ?conversation=ID: abre essa conversa (mesmo que esteja fora das 100 mais recentes).
@@ -78,6 +90,20 @@ export default async function InboxPage({
                 Usuários
               </Link>
             </>
+          )}
+          <Link
+            href="/contatos"
+            className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
+          >
+            Contatos
+          </Link>
+          {ownsInstance && (
+            <Link
+              href="/numeros"
+              className="rounded-lg border border-subtle px-4 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text"
+            >
+              Meus números
+            </Link>
           )}
           <Link
             href="/funil"

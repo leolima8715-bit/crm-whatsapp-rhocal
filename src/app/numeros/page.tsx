@@ -21,14 +21,19 @@ export default async function NumerosPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.role !== "gestor") redirect("/inbox");
+  if (!profile) redirect("/inbox");
+  const isGestor = profile.role === "gestor";
 
-  const { data: instances } = await supabase
+  // Gestor vê e gerencia todos; os demais veem só os números de que são donos (importar contatos).
+  let instQuery = supabase
     .from("whatsapp_instances")
     .select("id, label, phone, status, sector_id")
     .eq("org_id", profile.org_id)
-    .eq("archived", false)
-    .order("created_at", { ascending: true });
+    .eq("archived", false);
+  if (!isGestor) instQuery = instQuery.eq("owner_id", user.id);
+  const { data: instances } = await instQuery.order("created_at", { ascending: true });
+
+  if (!isGestor && !instances?.length) redirect("/inbox");
 
   const { data: sectors } = await supabase
     .from("sectors")
@@ -74,6 +79,7 @@ export default async function NumerosPage() {
           }[]
         }
         sectors={(sectors ?? []) as { id: string; name: string; color: string | null }[]}
+        canManage={isGestor}
       />
     </main>
   );

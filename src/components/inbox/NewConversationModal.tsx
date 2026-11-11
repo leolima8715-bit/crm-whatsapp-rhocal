@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, X } from "lucide-react";
+import { formatPhone } from "@/lib/format";
 import { normalizePhone } from "@/lib/phone";
 import { sectorStyle } from "@/lib/sector-style";
 
@@ -15,21 +16,82 @@ type UsableInstance = {
 const inputCls =
   "w-full rounded-lg border border-subtle bg-app px-3 py-2 text-sm outline-none focus:border-accent";
 
+type Suggestion = { id: string; name: string | null; push_name: string | null; phone: string };
+
 export default function NewConversationModal({
   onClose,
   onOpened,
+  initialPhone = "",
+  initialName = "",
 }: {
   onClose: () => void;
+  initialPhone?: string;
+  initialName?: string;
   // existingText: preenche a caixa de digitação quando a conversa já existia (nada foi enviado).
   onOpened: (conversationId: string, existingText?: string) => void;
 }) {
   const [instances, setInstances] = useState<UsableInstance[] | null>(null);
   const [instanceId, setInstanceId] = useState("");
-  const [phone, setPhone] = useState("");
-  const [name, setName] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
+  const [name, setName] = useState(initialName);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Autocomplete: sugere contatos (só os que o usuário pode ver) conforme digita telefone/nome.
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestFor, setSuggestFor] = useState<"phone" | "name" | null>(null);
+  const skipSearch = useRef(true); // não busca ao abrir com dados preenchidos nem após escolher
+
+  const searchTerm = (suggestFor === "name" ? name : phone).trim();
+  useEffect(() => {
+    if (skipSearch.current) {
+      skipSearch.current = false;
+      return;
+    }
+    if (!suggestFor || searchTerm.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/contacts/search?q=${encodeURIComponent(searchTerm)}`, { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((d) => setSuggestions(d.contacts ?? []))
+        .catch(() => {});
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [searchTerm, suggestFor]);
+
+  function pick(c: Suggestion) {
+    skipSearch.current = true;
+    setPhone(c.phone);
+    setName(c.name || c.push_name || "");
+    setSuggestions([]);
+    setSuggestFor(null);
+  }
+
+  const suggestionList =
+    suggestions.length > 0 ? (
+      <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-subtle bg-panel shadow-xl">
+        {suggestions.map((c) => (
+          <li key={c.id}>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick(c)}
+              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-app"
+            >
+              <span className="min-w-0 truncate">{c.name || c.push_name || "Sem nome"}</span>
+              <span className="shrink-0 text-xs text-secondary">{formatPhone(c.phone)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null;
 
   useEffect(() => {
     fetch("/api/instances/usable")
@@ -85,17 +147,24 @@ export default function NewConversationModal({
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          <label className="block text-sm">
+          <label className="relative block text-sm">
             <span className="mb-1 block text-secondary">Telefone *</span>
             <input
-              autoFocus
+              autoFocus={!initialPhone}
               type="tel"
               inputMode="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setSuggestFor("phone");
+                setPhone(e.target.value);
+              }}
+              onFocus={() => setSuggestFor("phone")}
+              onBlur={() => setSuggestions([])}
               placeholder="(11) 98765-4321"
+              autoComplete="off"
               className={inputCls}
             />
+            {suggestFor === "phone" && suggestionList}
             {phone && !phoneOk && (
               <span className="mt-1 block text-xs text-danger">
                 Informe DDD + número (com ou sem +55).
@@ -103,14 +172,21 @@ export default function NewConversationModal({
             )}
           </label>
 
-          <label className="block text-sm">
+          <label className="relative block text-sm">
             <span className="mb-1 block text-secondary">Nome do contato (recomendado)</span>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setSuggestFor("name");
+                setName(e.target.value);
+              }}
+              onFocus={() => setSuggestFor("name")}
+              onBlur={() => setSuggestions([])}
               maxLength={120}
+              autoComplete="off"
               className={inputCls}
             />
+            {suggestFor === "name" && suggestionList}
           </label>
 
           <div className="text-sm">

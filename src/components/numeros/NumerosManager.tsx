@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, QrCode, Unplug, Archive, X, Loader2, Tag } from "lucide-react";
+import { Plus, QrCode, Unplug, Archive, X, Loader2, Tag, Download } from "lucide-react";
 import SectorTag from "@/components/inbox/SectorTag";
 import { sectorInfo, sectorStyle } from "@/lib/sector-style";
 
@@ -43,12 +43,24 @@ async function api(url: string, init?: RequestInit) {
   return data;
 }
 
+type ImportSummary = {
+  total: number;
+  eligible: number;
+  ignored: number;
+  created: number;
+  existing: number;
+  errors: number;
+};
+
 export default function NumerosManager({
   instances,
   sectors,
+  canManage = true,
 }: {
   instances: Instance[];
   sectors: Sector[];
+  // false: dono do chip (não gestor) — só vê os próprios números e importa contatos.
+  canManage?: boolean;
 }) {
   const router = useRouter();
 
@@ -76,6 +88,46 @@ export default function NumerosManager({
     const t = setTimeout(() => setToast(null), 8000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  const [imp, setImp] = useState<{
+    id: string;
+    label: string;
+    running: boolean;
+    done: number;
+    sum: ImportSummary | null;
+    error: string | null;
+  } | null>(null);
+
+  async function importContacts(inst: Instance) {
+    if (imp?.running) return;
+    setImp({ id: inst.id, label: inst.label, running: true, done: 0, sum: null, error: null });
+    const sum: ImportSummary = { total: 0, eligible: 0, ignored: 0, created: 0, existing: 0, errors: 0 };
+    let offset = 0;
+    try {
+      for (;;) {
+        const d = await api(`/api/instances/${inst.id}/import-contacts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ offset }),
+        });
+        sum.total = d.total;
+        sum.eligible = d.eligible;
+        sum.ignored = d.ignored;
+        sum.created += d.created;
+        sum.existing += d.existing;
+        sum.errors += d.errors;
+        const done = d.nextOffset ?? d.eligible;
+        setImp((cur) => (cur ? { ...cur, done, sum: { ...sum } } : cur));
+        if (d.nextOffset == null) break;
+        offset = d.nextOffset;
+      }
+      setImp((cur) => (cur ? { ...cur, running: false, sum: { ...sum } } : cur));
+    } catch (e) {
+      setImp((cur) =>
+        cur ? { ...cur, running: false, sum: { ...sum }, error: (e as Error).message } : cur
+      );
+    }
+  }
 
   const closeRef = useRef<() => void>(() => {});
 
@@ -209,17 +261,21 @@ export default function NumerosManager({
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold">Números WhatsApp</h1>
-          <p className="text-sm text-secondary">Conecte e gerencie os números da operação.</p>
+          <p className="text-sm text-secondary">
+            {canManage ? "Conecte e gerencie os números da operação." : "Seus números conectados."}
+          </p>
         </div>
-        <button
-          onClick={() => {
-            setError(null);
-            setAddOpen(true);
-          }}
-          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover"
-        >
-          <Plus size={16} /> Adicionar número
-        </button>
+        {canManage && (
+          <button
+            onClick={() => {
+              setError(null);
+              setAddOpen(true);
+            }}
+            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover"
+          >
+            <Plus size={16} /> Adicionar número
+          </button>
+        )}
       </div>
 
       {toast && (
@@ -242,7 +298,9 @@ export default function NumerosManager({
 
       {instances.length === 0 ? (
         <p className="rounded-lg border border-subtle bg-panel p-8 text-center text-secondary">
-          Nenhum número cadastrado ainda. Clique em &quot;Adicionar número&quot; para começar.
+          {canManage
+            ? "Nenhum número cadastrado ainda. Clique em \"Adicionar número\" para começar."
+            : "Você não é dono de nenhum número."}
         </p>
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
@@ -308,6 +366,17 @@ export default function NumerosManager({
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
+                  {(statusOverride[inst.id] ?? inst.status) === "connected" && (
+                    <button
+                      disabled={busy || !!imp?.running}
+                      onClick={() => importContacts(inst)}
+                      className="flex items-center gap-2 rounded-lg border border-accent/50 px-3 py-1.5 text-sm text-accent-text transition hover:bg-accent/10 disabled:opacity-50"
+                    >
+                      <Download size={14} /> Importar contatos do WhatsApp
+                    </button>
+                  )}
+                  {canManage && (
+                    <>
                   <button
                     disabled={busy}
                     onClick={() => setEditSectorId(inst.id)}
@@ -344,12 +413,72 @@ export default function NumerosManager({
                   >
                     <Archive size={14} /> Arquivar
                   </button>
+                    </>
+                  )}
                   {busy && <Loader2 size={16} className="animate-spin self-center text-accent-text" />}
                 </div>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {imp && (
+        <Modal
+          title={`Importar contatos · ${imp.label}`}
+          onClose={() => {
+            if (!imp.running) setImp(null);
+          }}
+        >
+          <div className="space-y-3 text-sm">
+            {imp.running && (
+              <>
+                <p className="flex items-center gap-2 text-secondary">
+                  <Loader2 size={14} className="animate-spin" />
+                  {imp.sum
+                    ? `Importando... ${imp.done} de ${imp.sum.eligible}`
+                    : "Buscando a agenda do WhatsApp..."}
+                </p>
+                <div className="h-2 overflow-hidden rounded-full bg-app">
+                  <div
+                    className="h-full bg-accent transition-all"
+                    style={{
+                      width: `${imp.sum && imp.sum.eligible ? Math.round((imp.done / imp.sum.eligible) * 100) : 5}%`,
+                    }}
+                  />
+                </div>
+              </>
+            )}
+            {imp.error && <p className="text-danger">{imp.error}</p>}
+            {imp.sum && !imp.running && (
+              <ul className="space-y-1">
+                <li>
+                  Total recebido: <b>{imp.sum.total}</b>
+                </li>
+                <li>
+                  Novos: <b>{imp.sum.created}</b>
+                </li>
+                <li>
+                  Já existiam: <b>{imp.sum.existing}</b>
+                </li>
+                <li>
+                  Ignorados (grupos, listas, sem telefone, duplicados): <b>{imp.sum.ignored}</b>
+                </li>
+                <li className={imp.sum.errors ? "text-danger" : ""}>
+                  Erros: <b>{imp.sum.errors}</b>
+                </li>
+              </ul>
+            )}
+            {!imp.running && (
+              <button
+                onClick={() => setImp(null)}
+                className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-bold text-on-accent transition hover:bg-accent-hover"
+              >
+                Fechar
+              </button>
+            )}
+          </div>
+        </Modal>
       )}
 
       {addOpen && (
