@@ -30,6 +30,9 @@ export async function loadFunilData(
     conversations = await fetchConversations(userClient, MAX_ROWS);
   }
 
+  // Contatos da equipe RHOCAL não entram no funil.
+  conversations = conversations.filter((c) => !c.contact?.is_internal);
+
   // Conversa sem etapa: grava a etapa padrão ("Novo") e já devolve com ela.
   const fallback = pickStages(stages).novo ?? stages[0] ?? null;
   const orphans = conversations.filter((c) => !c.stage_id);

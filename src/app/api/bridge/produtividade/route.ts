@@ -139,14 +139,14 @@ export async function GET(req: Request) {
     const { data: doneStages } = await admin.from("conversation_stages").select("id").eq("kind", "done");
     const doneIds = (doneStages ?? []).map((s) => s.id as string);
 
-    type Conv = { id: string; instance_id: string; owner: string | null };
+    type Conv = { id: string; instance_id: string; owner: string | null; internal: boolean };
     const convCache = new Map<string, Conv>();
     const loadConvs = async (ids: string[]) => {
       const missing = ids.filter((id) => !convCache.has(id));
       for (const part of chunk(missing, 150)) {
         const { data, error } = await admin
           .from("conversations")
-          .select("id, instance_id, contact:contacts(owner_id)")
+          .select("id, instance_id, contact:contacts(owner_id, is_internal)")
           .in("id", part);
         if (error) throw new Error(error.message);
         for (const c of data ?? []) {
@@ -154,6 +154,7 @@ export async function GET(req: Request) {
           convCache.set(c.id, {
             id: c.id,
             instance_id: c.instance_id,
+            internal: contact?.is_internal === true, // contatos da equipe ficam fora dos indicadores
             owner: (contact?.owner_id as string | null | undefined) ?? chipOwner.get(c.instance_id) ?? null,
           });
         }
@@ -183,7 +184,7 @@ export async function GET(req: Request) {
     const waiting = new Map<string, number>(); // conversa -> início da espera
     for (const m of msgs) {
       const conv = convCache.get(m.conversation_id);
-      if (!conv) continue;
+      if (!conv || conv.internal) continue;
       const t = Date.parse(m.created_at);
       if (m.direction === "in") {
         if (!waiting.has(m.conversation_id)) waiting.set(m.conversation_id, t);
@@ -207,10 +208,10 @@ export async function GET(req: Request) {
     }
 
     // 2) Conversas novas no período, nos chips de cada usuário.
-    const novas = await fetchAll<{ instance_id: string }>((f, t) =>
+    const novas = await fetchAll<{ instance_id: string; contact: { is_internal: boolean | null } | { is_internal: boolean | null }[] | null }>((f, t) =>
       admin
         .from("conversations")
-        .select("instance_id")
+        .select("instance_id, contact:contacts(is_internal)")
         .gte("created_at", ini)
         .lt("created_at", fim)
         .order("created_at", { ascending: true })
@@ -218,6 +219,8 @@ export async function GET(req: Request) {
         .range(f, t)
     );
     for (const c of novas) {
+      const ct = Array.isArray(c.contact) ? c.contact[0] : c.contact;
+      if (ct?.is_internal) continue;
       const o = chipOwner.get(c.instance_id);
       const st = o ? stats.get(o) : undefined;
       if (st) st.novas++;
@@ -240,8 +243,8 @@ export async function GET(req: Request) {
       const doneConvs = Array.from(new Set(events.map((e) => e.conversation_id)));
       await loadConvs(doneConvs);
       for (const id of doneConvs) {
-        const o = convCache.get(id)?.owner;
-        const st = o ? stats.get(o) : undefined;
+        const cv = convCache.get(id);
+        const st = cv && !cv.internal && cv.owner ? stats.get(cv.owner) : undefined;
         if (st) st.concluidas++;
       }
     }
@@ -259,7 +262,7 @@ export async function GET(req: Request) {
     );
     const abertas = abertasAll.filter((a) => !a.stage_id || !doneSet.has(a.stage_id));
     await loadConvs(abertas.map((a) => a.id));
-    const queue = abertas.map((a) => a.id);
+    const queue = abertas.filter((a) => !convCache.get(a.id)?.internal).map((a) => a.id);
     const worker = async () => {
       for (let id = queue.pop(); id; id = queue.pop()) {
         const { data } = await admin

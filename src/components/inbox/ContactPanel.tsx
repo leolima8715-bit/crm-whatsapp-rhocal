@@ -16,6 +16,7 @@ import ContactOwner from "./ContactOwner";
 import { NotesSection } from "./ContactExtras";
 import StageSelect from "./StageSelect";
 import RhocalCliente from "./RhocalCliente";
+import TeamBadge from "./TeamBadge";
 import { displayName, formatContactLabel, formatPhone, initials } from "@/lib/format";
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
@@ -200,6 +201,59 @@ function ContactForm({
   );
 }
 
+function InternalToggle({
+  conversation,
+  onSaved,
+}: {
+  conversation: ConversationRow;
+  onSaved: (contactId: string, fields: Partial<ContactFields>) => void;
+}) {
+  const on = !!conversation.contact?.is_internal;
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/contacts/${conversation.contact_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_internal: !on }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Erro inesperado. Tente novamente.");
+      onSaved(conversation.contact_id, { is_internal: !!data.contact?.is_internal });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
+        <span>Contato da equipe RHOCAL</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          disabled={saving}
+          onClick={toggle}
+          className={`relative h-5 w-9 shrink-0 rounded-full transition disabled:opacity-50 ${on ? "bg-accent" : "bg-secondary/40"}`}
+        >
+          <span
+            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${on ? "left-[18px]" : "left-0.5"}`}
+          />
+        </button>
+      </label>
+      <p className="mt-1 text-xs text-secondary">Fica fora do funil, do painel de cliente e dos indicadores.</p>
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
 function TransferHistory({ conversation }: { conversation: ConversationRow }) {
   const [items, setItems] = useState<TransferEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -328,9 +382,25 @@ export default function ContactPanel({
         </div>
       </dl>
 
-      <div className="mt-6 border-t border-subtle pt-5">
-        <RhocalCliente key={`rhocal-${conversation.id}`} conversationId={conversation.id} />
-      </div>
+      {conversation.contact?.is_internal && (
+        <div className="mt-6 border-t border-subtle pt-5">
+          <TeamBadge size="lg" />
+        </div>
+      )}
+      {!conversation.contact?.is_internal && (
+        <div className="mt-6 border-t border-subtle pt-5">
+          <RhocalCliente key={`rhocal-${conversation.id}`} conversationId={conversation.id} />
+        </div>
+      )}
+      {(isGestor || conversation.instance?.owner_id === currentUserId) && (
+        <div className="mt-6 border-t border-subtle pt-5">
+          <InternalToggle
+            key={`internal-${conversation.contact_id}`}
+            conversation={conversation}
+            onSaved={onContactSaved}
+          />
+        </div>
+      )}
 
       <div className="mt-6 border-t border-subtle pt-5">
         <ContactForm

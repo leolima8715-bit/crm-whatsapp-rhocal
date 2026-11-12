@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireProfile } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
+import { isCompanyChipPhone } from "@/lib/internal-contacts";
 import { normalizePhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Admin } from "@/lib/users";
@@ -151,7 +152,13 @@ export async function POST(req: Request) {
     if (!contact) {
       const ins = await admin
         .from("contacts")
-        .insert({ org_id: profile.org_id, phone, name: name || null, owner_id: user.id })
+        .insert({
+          org_id: profile.org_id,
+          phone,
+          name: name || null,
+          owner_id: user.id,
+          is_internal: await isCompanyChipPhone(admin, profile.org_id, phone),
+        })
         .select("id, name, owner_id")
         .single();
       if (ins.error) {

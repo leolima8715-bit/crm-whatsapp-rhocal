@@ -23,12 +23,15 @@ export async function GET(req: Request) {
     const admin = createAdminClient();
     const { data: contact } = await admin
       .from("contacts")
-      .select("phone")
+      .select("phone, is_internal")
       .eq("id", conv.contact_id)
       .eq("org_id", conv.org_id)
       .maybeSingle();
     const phone = (contact?.phone as string | undefined)?.replace(/\D/g, "");
     if (!phone) throw new HttpError("Contato sem telefone.", 422);
+
+    // Contato da equipe RHOCAL não é cliente: não consulta o CRM RHOCAL.
+    if (contact?.is_internal) return NextResponse.json({ encontrado: false, clientes: [], interno: true });
 
     const base = process.env.RHOCAL_CRM_URL?.replace(/\/$/, "");
     const secret = process.env.BRIDGE_SECRET;

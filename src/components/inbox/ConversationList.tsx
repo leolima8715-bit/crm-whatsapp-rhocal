@@ -5,9 +5,11 @@ import { ownerNameOf, type Assignee, type ConversationRow, type SectorOption, ty
 import { alpha, conversationSector, inkOn, sectorStyle, type SectorInfo } from "@/lib/sector-style";
 import ConversationFilters from "./ConversationFilters";
 import SectorTag from "./SectorTag";
+import TeamBadge from "./TeamBadge";
 import { formatContactLabel, initials, previewLabel, relativeTime } from "@/lib/format";
 
 export type Tab = "all" | "mine" | "unassigned";
+export type Audience = "clients" | "team" | "all";
 export type StatusFilter = "open" | "waiting" | "resolved" | "all";
 
 export type Filters = {
@@ -17,6 +19,7 @@ export type Filters = {
   instance: string; // "" = todos
   sector: string; // "" = todos, "none" = sem setor, senão id do setor
   stage: string; // "" = todas, senão id da etapa
+  audience: Audience; // clientes (padrão), equipe RHOCAL ou todos
 };
 
 type Props = {
@@ -114,7 +117,10 @@ export default function ConversationList({
                 }`}
               >
                 <div className="flex w-full items-center justify-between gap-2">
-                  <SectorTag sector={sector} className="max-w-[70%]" />
+                  <span className="flex min-w-0 max-w-[70%] items-center gap-1">
+                    <SectorTag sector={sector} className="min-w-0" />
+                    {c.contact?.is_internal && <TeamBadge />}
+                  </span>
                   <span className="shrink-0 text-xs text-secondary">
                     {relativeTime(c.last_message_at)}
                   </span>

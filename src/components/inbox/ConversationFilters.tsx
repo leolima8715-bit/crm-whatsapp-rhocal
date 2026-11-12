@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Filter, Plus, Search, X } from "lucide-react";
 import type { Assignee, StageRow } from "@/lib/inbox-types";
 import { alpha, sectorStyle, type SectorInfo } from "@/lib/sector-style";
-import type { Filters, StatusFilter, Tab } from "./ConversationList";
+import type { Audience, Filters, StatusFilter, Tab } from "./ConversationList";
 
 export const DEFAULT_FILTERS: Filters = {
   tab: "all",
@@ -13,9 +13,11 @@ export const DEFAULT_FILTERS: Filters = {
   instance: "",
   sector: "",
   stage: "",
+  audience: "clients",
 };
 
 const TAB_LABEL: Record<Tab, string> = { all: "Todas", mine: "Minhas", unassigned: "Sem responsável" };
+const AUDIENCE_LABEL: Record<Audience, string> = { clients: "Clientes", team: "Equipe", all: "Todos" };
 const STATUS_LABEL: Record<StatusFilter, string> = {
   open: "Abertas",
   waiting: "Aguardando",
@@ -92,6 +94,9 @@ export default function ConversationFilters({
   }
   if (filters.tab !== "all") {
     active.push({ key: "tab", label: TAB_LABEL[filters.tab], clear: () => set({ tab: "all" }) });
+  }
+  if (filters.audience !== "clients") {
+    active.push({ key: "audience", label: AUDIENCE_LABEL[filters.audience], clear: () => set({ audience: "clients" }) });
   }
   if (filters.status !== "open") {
     active.push({ key: "status", label: STATUS_LABEL[filters.status], clear: () => set({ status: "open" }) });
@@ -259,6 +264,22 @@ export default function ConversationFilters({
                           {t.extra}
                         </span>
                       ) : null}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className={`${sectionCls} mb-1.5`}>Contatos</h3>
+                <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por tipo de contato">
+                  {(["clients", "team", "all"] as Audience[]).map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => set({ audience: a })}
+                      aria-pressed={filters.audience === a}
+                      className={`${pillCls} ${filters.audience === a ? pillOn : pillOff}`}
+                    >
+                      {AUDIENCE_LABEL[a]}
                     </button>
                   ))}
                 </div>

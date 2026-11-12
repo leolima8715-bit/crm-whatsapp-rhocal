@@ -62,6 +62,6 @@ export function webhookSettings() {
     byEvents: false,
     base64: false,
     headers: { "x-webhook-secret": secret },
-    events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+    events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CHATS_UPDATE", "CONNECTION_UPDATE"],
   };
 }

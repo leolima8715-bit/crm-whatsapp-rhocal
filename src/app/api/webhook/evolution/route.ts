@@ -3,6 +3,8 @@ import { createHash, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { MEDIA_TYPES, downloadAndStoreMedia } from "@/lib/media-server";
 import { applyMessageAutomation } from "@/lib/stages";
+import { parseContent } from "@/lib/message-parse";
+import { isCompanyChipPhone } from "@/lib/internal-contacts";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -62,47 +64,6 @@ function resolvePhone(key: any): string | null {
   return digits || null;
 }
 
-function unwrap(message: any): any {
-  let m = message ?? {};
-  for (let i = 0; i < 4; i++) {
-    const inner =
-      m.ephemeralMessage?.message ??
-      m.viewOnceMessage?.message ??
-      m.viewOnceMessageV2?.message ??
-      m.documentWithCaptionMessage?.message ??
-      null;
-    if (!inner) break;
-    m = inner;
-  }
-  return m;
-}
-
-function parseContent(message: any): {
-  type: string;
-  body: string | null;
-  mime: string | null;
-} {
-  const m = unwrap(message);
-  if (typeof m.conversation === "string") return { type: "text", body: m.conversation, mime: null };
-  if (m.extendedTextMessage)
-    return { type: "text", body: m.extendedTextMessage.text ?? null, mime: null };
-  if (m.imageMessage)
-    return { type: "image", body: m.imageMessage.caption ?? null, mime: m.imageMessage.mimetype ?? null };
-  if (m.videoMessage)
-    return { type: "video", body: m.videoMessage.caption ?? null, mime: m.videoMessage.mimetype ?? null };
-  if (m.audioMessage) return { type: "audio", body: null, mime: m.audioMessage.mimetype ?? null };
-  if (m.documentMessage)
-    return {
-      type: "document",
-      body: m.documentMessage.fileName ?? m.documentMessage.caption ?? null,
-      mime: m.documentMessage.mimetype ?? null,
-    };
-  if (m.stickerMessage) return { type: "sticker", body: null, mime: m.stickerMessage.mimetype ?? null };
-  if (m.locationMessage) return { type: "location", body: null, mime: null };
-  if (m.contactMessage || m.contactsArrayMessage) return { type: "contact", body: null, mime: null };
-  return { type: "other", body: null, mime: null };
-}
-
 function toIso(ts: unknown): string | undefined {
   // messageTimestamp vem em segundos (número, string ou objeto Long).
   const n =
@@ -134,7 +95,12 @@ async function ensureContact(
   if (!contact) {
     const ins = await admin
       .from("contacts")
-      .insert({ org_id: orgId, phone, push_name: pushName })
+      .insert({
+        org_id: orgId,
+        phone,
+        push_name: pushName,
+        is_internal: await isCompanyChipPhone(admin, orgId, phone),
+      })
       .select("id, push_name")
       .single();
     if (ins.error) {
@@ -202,7 +168,9 @@ async function handleUpsert(admin: Admin, inst: Instance, item: any) {
   if (!phone) return;
 
   const direction = key.fromMe ? "out" : "in";
-  const { type, body, mime } = parseContent(item.message);
+  const parsed = parseContent(item.message);
+  if (!parsed) return;
+  const { type, body, mime } = parsed;
   const pushName =
     direction === "in" && typeof item.pushName === "string" && item.pushName.trim()
       ? item.pushName.trim()
@@ -237,6 +205,9 @@ async function handleUpsert(admin: Admin, inst: Instance, item: any) {
     throw new DbError("messages insert");
   }
 
+  // Respondida pelo celular (fromMe): a conversa foi vista, então zera as não lidas.
+  if (direction === "out") await clearUnread(admin, conversationId);
+
   // Mensagem recebida reabre/avança a etapa da conversa (não bloqueia o webhook se falhar).
   if (direction === "in") {
     await applyMessageAutomation(admin, { conversationId, orgId: inst.org_id, event: "in" });
@@ -254,6 +225,15 @@ async function handleUpsert(admin: Admin, inst: Instance, item: any) {
       fileName: type === "document" ? body : null,
     });
   }
+}
+
+async function clearUnread(admin: Admin, conversationId: string) {
+  const { error } = await admin
+    .from("conversations")
+    .update({ unread_count: 0 })
+    .eq("id", conversationId)
+    .gt("unread_count", 0);
+  if (error) console.error("[webhook] unread_count não zerado:", error.message);
 }
 
 function mapAckStatus(raw: unknown): keyof typeof MSG_STATUS_RANK | "failed" | null {
@@ -284,12 +264,15 @@ async function handleMessageUpdate(admin: Admin, inst: Instance, item: any) {
 
   const { data: msg, error } = await admin
     .from("messages")
-    .select("id, status")
+    .select("id, status, direction, conversation_id")
     .eq("org_id", inst.org_id)
     .eq("external_id", externalId)
     .maybeSingle();
   if (error) throw new DbError("messages select");
   if (!msg) return;
+
+  // Mensagem RECEBIDA marcada como lida (no celular): zera as não lidas da conversa.
+  if (next === "read" && msg.direction === "in") await clearUnread(admin, msg.conversation_id as string);
 
   // Status só avança (um ack atrasado não rebaixa 'read' para 'delivered').
   const cur = msg.status as keyof typeof MSG_STATUS_RANK | "failed";
@@ -301,6 +284,30 @@ async function handleMessageUpdate(admin: Admin, inst: Instance, item: any) {
 
   const upd = await admin.from("messages").update({ status: next }).eq("id", msg.id);
   if (upd.error) throw new DbError("messages update");
+}
+
+// Chat marcado como lido no celular (Evolution: chats.update com unreadMessages/unreadCount = 0).
+async function handleChatUpdate(admin: Admin, inst: Instance, item: any) {
+  const unread = item?.unreadMessages ?? item?.unreadCount;
+  if (unread !== 0 && unread !== "0") return;
+  const jid: string = item?.remoteJid ?? item?.id ?? "";
+  if (!jid || jid.endsWith("@g.us") || jid === "status@broadcast" || jid.endsWith("@lid")) return;
+  const phone = jidDigits(jid);
+  if (!phone) return;
+  const { data: contact } = await admin
+    .from("contacts")
+    .select("id")
+    .eq("org_id", inst.org_id)
+    .eq("phone", phone)
+    .maybeSingle();
+  if (!contact) return;
+  const { data: conv } = await admin
+    .from("conversations")
+    .select("id")
+    .eq("instance_id", inst.id)
+    .eq("contact_id", contact.id)
+    .maybeSingle();
+  if (conv) await clearUnread(admin, conv.id as string);
 }
 
 async function handleConnection(admin: Admin, inst: Instance, item: any) {
@@ -328,7 +335,7 @@ export async function POST(req: Request) {
 
   const event = normalizeEvent(payload?.event);
   const instanceName: string | undefined = payload?.instance;
-  if (!instanceName || !["messages.upsert", "messages.update", "connection.update"].includes(event)) {
+  if (!instanceName || !["messages.upsert", "messages.update", "chats.update", "connection.update"].includes(event)) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -348,6 +355,7 @@ export async function POST(req: Request) {
       try {
         if (event === "messages.upsert") await handleUpsert(admin, inst, item);
         else if (event === "messages.update") await handleMessageUpdate(admin, inst, item);
+        else if (event === "chats.update") await handleChatUpdate(admin, inst, item);
         else await handleConnection(admin, inst, item);
       } catch (e) {
         if (e instanceof DbError) dbFailed = true;

@@ -78,6 +78,9 @@ const PREVIEW_BY_TYPE: Record<string, string> = {
   documento: "📄 Documento",
   sticker: "💟 Figurinha",
   figurinha: "💟 Figurinha",
+  mensagem: "Mensagem não suportada (abra no celular)",
+  localização: "📍 Localização",
+  contato: "👤 Contato",
 };
 
 export function previewLabel(preview: string | null) {

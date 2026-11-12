@@ -59,6 +59,7 @@ export default function InboxShell({
     instance: "",
     sector: "",
     stage: "",
+    audience: "clients",
   });
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
@@ -254,7 +255,7 @@ export default function InboxShell({
   async function handleNewConversation(id: string, existingText?: string) {
     setNewOpen(false);
     await refreshConversation(id);
-    setFilters({ tab: "all", status: "all", assignee: "", instance: "", sector: "", stage: "" });
+    setFilters({ tab: "all", status: "all", assignee: "", instance: "", sector: "", stage: "", audience: "all" });
     setSearch("");
     setDraft(existingText ? { conversationId: id, text: existingText } : null);
     setSelectedId(id);
@@ -348,6 +349,7 @@ export default function InboxShell({
     () =>
       conversations.filter(
         (c) =>
+          (filters.audience === "all" || (filters.audience === "team") === !!c.contact?.is_internal) &&
           (filters.status === "all" || c.status === filters.status) &&
           (!isGestor || !filters.assignee || ownerIdOf(c) === filters.assignee) &&
           (!isGestor || !filters.instance || c.instance_id === filters.instance) &&

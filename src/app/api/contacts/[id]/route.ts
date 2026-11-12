@@ -11,7 +11,7 @@ type Field = keyof typeof LIMITS;
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { supabase, profile } = await requireProfile();
+    const { supabase, user, profile } = await requireProfile();
     if (!isUuid(params.id)) throw new HttpError("Contato não encontrado.", 404);
 
     // Acesso: uma conversa deste contato visível ao usuário (RLS), ou gestor da organização.
@@ -64,17 +64,38 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         throw new HttpError("Pessoa inválida.", 400);
       }
     }
-    if (Object.keys(update).length === 0 && !("owner_id" in ownerUpdate)) {
+    // Contato da equipe RHOCAL: gestor ou dono do chip de uma conversa do contato.
+    const flagUpdate: { is_internal?: boolean } = {};
+    if (body?.is_internal !== undefined) {
+      if (typeof body.is_internal !== "boolean") throw new HttpError("Dados inválidos.", 400);
+      if (profile.role !== "gestor") {
+        const { data: convs } = await supabase
+          .from("conversations")
+          .select("instance_id")
+          .eq("contact_id", params.id);
+        const ids = Array.from(new Set((convs ?? []).map((c) => c.instance_id as string)));
+        const { count } = ids.length
+          ? await admin
+              .from("whatsapp_instances")
+              .select("id", { count: "exact", head: true })
+              .in("id", ids)
+              .eq("owner_id", user.id)
+          : { count: 0 };
+        if (!count) throw new HttpError("Só o gestor ou o dono do número pode alterar isso.", 403);
+      }
+      flagUpdate.is_internal = body.is_internal;
+    }
+    if (Object.keys(update).length === 0 && !("owner_id" in ownerUpdate) && !("is_internal" in flagUpdate)) {
       throw new HttpError("Nada para atualizar.", 400);
     }
 
     // org_id e phone nunca são alterados por esta rota.
     const { data, error } = await admin
       .from("contacts")
-      .update({ ...update, ...ownerUpdate })
+      .update({ ...update, ...ownerUpdate, ...flagUpdate })
       .eq("id", params.id)
       .eq("org_id", profile.org_id)
-      .select("id, name, company, email, document, notes")
+      .select("id, name, company, email, document, notes, is_internal")
       .maybeSingle();
     if (error) throw new HttpError("Erro ao salvar o contato.", 500);
     if (!data) throw new HttpError("Contato não encontrado.", 404);

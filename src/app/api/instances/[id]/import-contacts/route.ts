@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireProfile } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
+import { companyChipKeys, phoneKey } from "@/lib/internal-contacts";
 import { jidToPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/users";
@@ -98,6 +99,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       for (const r of (data ?? []) as Existing[]) existing.set(r.phone, r);
     }
 
+    const chipKeys = await companyChipKeys(admin, inst.org_id);
     const toInsert: Record<string, unknown>[] = [];
     const toUpdate: Existing[] = [];
     for (const p of page) {
@@ -110,6 +112,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           push_name: p.pushName,
           owner_id: inst.owner_id,
           source_instance_id: inst.id,
+          is_internal: chipKeys.has(phoneKey(p.phone) ?? "-"),
         });
         continue;
       }

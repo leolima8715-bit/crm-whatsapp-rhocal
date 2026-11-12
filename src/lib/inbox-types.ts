@@ -14,6 +14,7 @@ export type ConversationRow = {
   last_message_preview: string | null;
   contact: {
     owner_id: string | null;
+    is_internal?: boolean;
     name: string | null;
     push_name: string | null;
     phone: string;

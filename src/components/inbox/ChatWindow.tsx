@@ -20,6 +20,8 @@ import AttachmentPanel from "./AttachmentPanel";
 import SectorTag from "./SectorTag";
 import ConversationActions from "./ConversationActions";
 import MediaContent from "./MediaContent";
+import TeamBadge from "./TeamBadge";
+import { linkify } from "./Linkify";
 import VoiceRecorder from "./VoiceRecorder";
 
 const ACCEPT =
@@ -492,6 +494,7 @@ export default function ChatWindow({
               {label}
             </h2>
             <SectorTag sector={sector} size="lg" className="max-w-[50%]" />
+            {conversation.contact?.is_internal && <TeamBadge size="lg" />}
           </div>
           <p className="truncate text-xs text-secondary">
             {conversation.contact ? formatPhone(conversation.contact.phone) : ""}
@@ -527,9 +530,9 @@ export default function ChatWindow({
           const out = m.direction === "out";
           const isMedia = ["image", "video", "audio", "document", "sticker"].includes(m.type);
           const otherLabel: Record<string, string> = {
-            location: "[Localização]",
-            contact: "[Contato]",
-            other: "[Mensagem]",
+            location: "Localização",
+            contact: "Contato",
+            other: "Mensagem não suportada (abra no celular)",
           };
           return (
             <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
@@ -542,12 +545,16 @@ export default function ChatWindow({
                   <MediaContent m={m} />
                 ) : (
                   <>
-                    {m.type !== "text" && (
+                    {m.type !== "text" && !m.body && (
                       <p className="text-xs font-bold opacity-80">
-                        {otherLabel[m.type] ?? "[Mensagem]"}
+                        {otherLabel[m.type] ?? otherLabel.other}
                       </p>
                     )}
-                    {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                    {m.body && (
+                      <p className="whitespace-pre-wrap break-words">
+                        {m.type === "location" ? linkify(m.body) : m.body}
+                      </p>
+                    )}
                   </>
                 )}
                 <p
