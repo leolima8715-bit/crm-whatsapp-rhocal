@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { businessMinutesBetween } from "@/lib/business-hours";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Ponte servidor-a-servidor (CRM RHOCAL): SOMENTE LEITURA, protegida por BRIDGE_SECRET.
@@ -50,9 +51,11 @@ type Stats = {
   atendidas: Set<string>;
   enviadas: number;
   novas: number;
-  esperas: number[];
+  esperas: number[]; // minutos úteis
+  esperasCorridas: number[]; // minutos corridos
   semResposta: number;
-  maiorEsperaMs: number;
+  esquecidas: number;
+  maiorEsperaMin: number; // minutos úteis
   concluidas: number;
 };
 const blank = (): Stats => ({
@@ -60,8 +63,10 @@ const blank = (): Stats => ({
   enviadas: 0,
   novas: 0,
   esperas: [],
+  esperasCorridas: [],
   semResposta: 0,
-  maiorEsperaMs: 0,
+  esquecidas: 0,
+  maiorEsperaMin: 0,
   concluidas: 0,
 });
 
@@ -80,6 +85,25 @@ async function listUsers(admin: Admin) {
     .filter((p) => p.active !== false && emails.has(p.id))
     .map((p) => ({ id: p.id, email: emails.get(p.id)!, nome: p.full_name }));
 }
+
+const REGRAS = {
+  conversas_atendidas: "Conversas em que o usuário enviou ao menos 1 mensagem no período.",
+  mensagens_enviadas:
+    "Mensagens enviadas no período (mensagens enviadas direto pelo celular contam para o dono do chip).",
+  conversas_novas: "Conversas criadas no período nos números (chips) do usuário.",
+  tempo_medio_primeira_resposta_min:
+    "Média do tempo entre uma mensagem do cliente e a próxima resposta enviada, contando só o horário comercial (seg a sex, 08h às 18h, horário de Brasília). Só espera iniciada e respondida dentro do período.",
+  tempo_medio_primeira_resposta_corrido_min:
+    "Mesma média, mas em minutos corridos (24h, inclui noites e fins de semana). Apenas para referência.",
+  sem_resposta_agora:
+    "Conversas abertas (não resolvidas e fora de etapa Concluído) cuja última mensagem é do cliente e chegou nos últimos 7 dias.",
+  maior_espera_min:
+    "Maior tempo, em minutos de horário comercial, que um cliente aguarda resposta entre as conversas de sem_resposta_agora.",
+  esquecidas:
+    "Conversas abertas cuja última mensagem é do cliente há mais de 7 dias: precisam ser concluídas ou retomadas.",
+  concluidas:
+    "Conversas distintas movidas para uma etapa do tipo Concluído no período (pelo histórico de etapas; reabrir depois não desfaz a contagem). Responsável: dono do contato, senão dono do chip.",
+};
 
 export async function GET(req: Request) {
   if (!secretOk(req.headers.get("x-bridge-secret"))) {
@@ -172,7 +196,10 @@ export async function GET(req: Request) {
       const start = waiting.get(m.conversation_id);
       if (start !== undefined) {
         waiting.delete(m.conversation_id);
-        st?.esperas.push(t - start);
+        if (st) {
+          st.esperas.push(businessMinutesBetween(start, t));
+          st.esperasCorridas.push((t - start) / 60000);
+        }
       }
       if (!st) continue;
       st.enviadas++;
@@ -196,36 +223,41 @@ export async function GET(req: Request) {
       if (st) st.novas++;
     }
 
-    // 3) Concluídas: movidas para etapa "done" no período (responsável = dono do contato, senão do chip).
+    // 3) Concluídas: conversas distintas com evento de mudança de etapa para "done" no período
+    // (histórico: concluída e depois reaberta continua contando). Responsável = dono do contato, senão do chip.
     if (doneIds.length) {
-      const done = await fetchAll<{ id: string }>((f, t) =>
+      const events = await fetchAll<{ conversation_id: string }>((f, t) =>
         admin
-          .from("conversations")
-          .select("id")
-          .in("stage_id", doneIds)
-          .gte("stage_changed_at", ini)
-          .lt("stage_changed_at", fim)
-          .order("id", { ascending: true })
+          .from("conversation_stage_events")
+          .select("conversation_id")
+          .in("to_stage", doneIds)
+          .gte("changed_at", ini)
+          .lt("changed_at", fim)
+          .order("conversation_id", { ascending: true })
+          .order("changed_at", { ascending: true })
           .range(f, t)
       );
-      await loadConvs(done.map((d) => d.id));
-      for (const d of done) {
-        const o = convCache.get(d.id)?.owner;
+      const doneConvs = Array.from(new Set(events.map((e) => e.conversation_id)));
+      await loadConvs(doneConvs);
+      for (const id of doneConvs) {
+        const o = convCache.get(id)?.owner;
         const st = o ? stats.get(o) : undefined;
         if (st) st.concluidas++;
       }
     }
 
     // 4) Sem resposta agora: conversas não resolvidas cuja última mensagem é do cliente.
-    const abertas = await fetchAll<{ id: string }>((f, t) =>
+    const doneSet = new Set(doneIds);
+    const abertasAll = await fetchAll<{ id: string; stage_id: string | null }>((f, t) =>
       admin
         .from("conversations")
-        .select("id")
+        .select("id, stage_id")
         .neq("status", "resolved")
         .not("last_message_at", "is", null)
         .order("id", { ascending: true })
         .range(f, t)
     );
+    const abertas = abertasAll.filter((a) => !a.stage_id || !doneSet.has(a.stage_id));
     await loadConvs(abertas.map((a) => a.id));
     const queue = abertas.map((a) => a.id);
     const worker = async () => {
@@ -241,8 +273,13 @@ export async function GET(req: Request) {
         const o = convCache.get(id)?.owner;
         const st = o ? stats.get(o) : undefined;
         if (!st) continue;
+        const chegou = Date.parse(data.created_at);
+        if (agora - chegou > 7 * 86400000) {
+          st.esquecidas++; // sem resposta há mais de 7 dias: concluir ou retomar
+          continue;
+        }
         st.semResposta++;
-        st.maiorEsperaMs = Math.max(st.maiorEsperaMs, agora - Date.parse(data.created_at));
+        st.maiorEsperaMin = Math.max(st.maiorEsperaMin, businessMinutesBetween(chegou, agora));
       }
     };
     await Promise.all(Array.from({ length: 8 }, worker));
@@ -251,9 +288,12 @@ export async function GET(req: Request) {
     return NextResponse.json({
       de,
       ate,
+      regras: REGRAS,
       usuarios: users.map((u) => {
         const s = stats.get(u.id)!;
-        const media = s.esperas.length ? s.esperas.reduce((a, b) => a + b, 0) / s.esperas.length / 60000 : null;
+        const avg = (v: number[]) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
+        const media = avg(s.esperas);
+        const corrido = avg(s.esperasCorridas);
         return {
           email: u.email,
           nome: u.nome,
@@ -261,8 +301,10 @@ export async function GET(req: Request) {
           mensagens_enviadas: s.enviadas,
           conversas_novas: s.novas,
           tempo_medio_primeira_resposta_min: media === null ? null : round1(media),
+          tempo_medio_primeira_resposta_corrido_min: corrido === null ? null : round1(corrido),
           sem_resposta_agora: s.semResposta,
-          maior_espera_min: Math.round(s.maiorEsperaMs / 60000),
+          esquecidas: s.esquecidas,
+          maior_espera_min: Math.round(s.maiorEsperaMin),
           concluidas: s.concluidas,
         };
       }),
