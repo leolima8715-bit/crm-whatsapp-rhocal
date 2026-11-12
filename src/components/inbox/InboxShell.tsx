@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
@@ -33,19 +34,23 @@ export default function InboxShell({
   currentRole,
   currentUserName,
   initialSelectedId,
+  phoneLookup = null,
 }: {
   initialConversations: ConversationRow[];
   currentUserId: string;
   currentRole: string;
   currentUserName: string;
   initialSelectedId: string | null;
+  // Link /inbox?telefone=...: várias conversas (escolher) ou nenhuma (abrir Nova conversa).
+  phoneLookup?: { phone: string; matches: ConversationRow[] } | null;
 }) {
   const isGestor = currentRole === "gestor";
   const supabase = useMemo(() => createClient(), []);
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(
-    initialSelectedId ?? initialConversations[0]?.id ?? null
+    initialSelectedId ?? (phoneLookup ? null : initialConversations[0]?.id) ?? null
   );
+  const [choiceOpen, setChoiceOpen] = useState(!!phoneLookup && phoneLookup.matches.length > 1);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>({
     tab: "all",
@@ -60,7 +65,7 @@ export default function InboxShell({
   const [stages, setStages] = useState<StageRow[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
-  const [newOpen, setNewOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(!!phoneLookup && phoneLookup.matches.length === 0);
   const [draft, setDraft] = useState<{ conversationId: string; text: string } | null>(null);
 
   const selectedRef = useRef(selectedId);
@@ -428,7 +433,53 @@ export default function InboxShell({
         onNewConversation={() => setNewOpen(true)}
       />
       {newOpen && (
-        <NewConversationModal onClose={() => setNewOpen(false)} onOpened={handleNewConversation} />
+        <NewConversationModal
+          onClose={() => setNewOpen(false)}
+          onOpened={handleNewConversation}
+          initialPhone={phoneLookup && phoneLookup.matches.length === 0 ? phoneLookup.phone : ""}
+        />
+      )}
+      {choiceOpen && phoneLookup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-lg border border-subtle bg-panel p-5">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-bold">Escolha a conversa</h2>
+              <button
+                onClick={() => setChoiceOpen(false)}
+                aria-label="Fechar"
+                className="text-secondary hover:text-danger"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-secondary">
+              Há mais de uma conversa com este telefone, em números diferentes.
+            </p>
+            <ul className="space-y-1.5">
+              {phoneLookup.matches.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => {
+                      setChoiceOpen(false);
+                      handleSelect(c.id);
+                    }}
+                    className="w-full rounded-lg border border-subtle px-3 py-2 text-left transition hover:border-accent"
+                  >
+                    <span className="flex items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate font-semibold">{displayName(c.contact)}</span>
+                      <span className="shrink-0 text-[10px] uppercase tracking-wider text-secondary">
+                        {c.instance?.label ?? "Número"}
+                      </span>
+                    </span>
+                    {c.last_message_preview && (
+                      <span className="mt-0.5 block truncate text-xs text-secondary">{c.last_message_preview}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         {notice && (

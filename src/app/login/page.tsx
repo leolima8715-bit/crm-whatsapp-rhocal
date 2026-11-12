@@ -29,7 +29,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/inbox");
+    // Volta ao link de origem (ex.: /inbox?telefone=...), só caminhos internos.
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/inbox");
     router.refresh();
   }
 

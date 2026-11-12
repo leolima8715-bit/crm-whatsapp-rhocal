@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { isUuid } from "@/lib/users";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizePhone } from "@/lib/phone";
+import { CONVERSATION_SELECT } from "@/lib/inbox-queries";
+import type { ConversationRow } from "@/lib/inbox-types";
 import ThemeToggle from "@/components/ThemeToggle";
 import LogoutButton from "@/components/LogoutButton";
 import InboxShell from "@/components/inbox/InboxShell";
@@ -19,7 +23,7 @@ const roleLabel: Record<string, string> = {
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: { conversation?: string };
+  searchParams: { conversation?: string; telefone?: string };
 }) {
   const supabase = createClient();
 
@@ -31,7 +35,7 @@ export default async function InboxPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, org_id")
     .eq("id", user.id)
     .single();
 
@@ -58,6 +62,36 @@ export default async function InboxPage({
       if (!conversations.some((c) => c.id === found.id)) conversations.push(found);
       initialSelectedId = found.id;
     }
+  }
+
+  // ?telefone=55...: link vindo do CRM RHOCAL. Procura as conversas desse telefone que o usuário pode ver.
+  let phoneLookup: { phone: string; matches: ConversationRow[] } | null = null;
+  const phone = typeof searchParams.telefone === "string" ? normalizePhone(searchParams.telefone) : null;
+  if (profile && phone && !initialSelectedId) {
+    // Variantes com/sem o 9º dígito de celular (55 + DDD + 9 + 8 dígitos).
+    const variants = new Set([phone]);
+    if (phone.length === 13 && phone.startsWith("55") && phone[4] === "9") variants.add(phone.slice(0, 4) + phone.slice(5));
+    if (phone.length === 12 && phone.startsWith("55")) variants.add(phone.slice(0, 4) + "9" + phone.slice(4));
+    const admin = createAdminClient();
+    const { data: contacts } = await admin
+      .from("contacts")
+      .select("id")
+      .eq("org_id", profile.org_id)
+      .in("phone", Array.from(variants));
+    const ids = (contacts ?? []).map((c) => c.id as string);
+    let matches: ConversationRow[] = [];
+    if (ids.length) {
+      // Client do usuário: a RLS (can_access_conversation) filtra o que ele pode ver.
+      const { data } = await supabase
+        .from("conversations")
+        .select(CONVERSATION_SELECT)
+        .in("contact_id", ids)
+        .order("last_message_at", { ascending: false, nullsFirst: false });
+      matches = (data ?? []) as unknown as ConversationRow[];
+    }
+    for (const m of matches) if (!conversations.some((c) => c.id === m.id)) conversations.push(m);
+    if (matches.length === 1) initialSelectedId = matches[0].id;
+    else phoneLookup = { phone, matches };
   }
 
   return (
@@ -135,6 +169,7 @@ export default async function InboxPage({
           currentRole={profile.role}
           currentUserName={profile.full_name}
           initialSelectedId={initialSelectedId}
+          phoneLookup={phoneLookup}
         />
       ) : (
         <p className="p-8 text-danger">

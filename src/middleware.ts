@@ -30,17 +30,27 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/api/webhook");
+  // /api/bridge/* tem autenticação própria (x-bridge-secret), sem sessão de usuário.
+  const isPublic =
+    path.startsWith("/login") || path.startsWith("/api/webhook") || path.startsWith("/api/bridge");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
+    // Guarda o destino (ex.: /inbox?telefone=55...) para voltar depois do login.
+    const next = path + request.nextUrl.search;
     url.pathname = "/login";
+    url.search = "";
+    if (path !== "/" && next.length < 500) url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 
   if (user && path === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/inbox";
+    const next = request.nextUrl.searchParams.get("next");
+    const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/inbox";
+    const [tp, ts] = target.split("?");
+    url.pathname = tp;
+    url.search = ts ? `?${ts}` : "";
     return NextResponse.redirect(url);
   }
 

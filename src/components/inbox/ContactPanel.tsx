@@ -15,6 +15,7 @@ import { conversationSector } from "@/lib/sector-style";
 import ContactOwner from "./ContactOwner";
 import { NotesSection } from "./ContactExtras";
 import StageSelect from "./StageSelect";
+import RhocalCliente from "./RhocalCliente";
 import { displayName, formatContactLabel, formatPhone, initials } from "@/lib/format";
 
 type ContactFields = NonNullable<ConversationRow["contact"]>;
@@ -326,6 +327,10 @@ export default function ContactPanel({
           </dd>
         </div>
       </dl>
+
+      <div className="mt-6 border-t border-subtle pt-5">
+        <RhocalCliente key={`rhocal-${conversation.id}`} conversationId={conversation.id} />
+      </div>
 
       <div className="mt-6 border-t border-subtle pt-5">
         <ContactForm
