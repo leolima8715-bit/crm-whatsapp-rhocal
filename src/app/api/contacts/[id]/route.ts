@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireProfile } from "@/lib/auth";
+import { isInternalPhone } from "@/lib/internal-contacts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/users";
 
@@ -51,6 +52,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (body.owner_id === null || body.owner_id === "") {
         ownerUpdate.owner_id = null;
       } else if (isUuid(body.owner_id)) {
+        // Contato interno nunca tem responsável (nem pelo gestor). Remover o responsável (null) é permitido.
+        const { data: target } = await admin
+          .from("contacts")
+          .select("phone, is_internal")
+          .eq("id", params.id)
+          .eq("org_id", profile.org_id)
+          .maybeSingle();
+        if (!target) throw new HttpError("Contato não encontrado.", 404);
+        // Vale o estado que o contato terá após esta requisição (ela pode marcar/desmarcar is_internal).
+        const flagged = typeof body.is_internal === "boolean" ? body.is_internal : !!target.is_internal;
+        if (flagged || (await isInternalPhone(admin, profile.org_id, target.phone as string))) {
+          throw new HttpError("Contato interno não pode ter responsável.", 400);
+        }
+
         const { data: p } = await admin
           .from("profiles")
           .select("id")

@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireProfile } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
-import { companyChipKeys, phoneKey } from "@/lib/internal-contacts";
+import { internalPhoneKeys, phoneKey } from "@/lib/internal-contacts";
 import { jidToPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/users";
@@ -20,6 +20,7 @@ type Existing = {
   push_name: string | null;
   owner_id: string | null;
   source_instance_id: string | null;
+  is_internal: boolean | null;
 };
 
 function clean(v: unknown): string | null {
@@ -92,27 +93,29 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     for (let i = 0; i < page.length; i += IN_CHUNK) {
       const { data, error } = await admin
         .from("contacts")
-        .select("id, phone, name, push_name, owner_id, source_instance_id")
+        .select("id, phone, name, push_name, owner_id, source_instance_id, is_internal")
         .eq("org_id", inst.org_id)
         .in("phone", page.slice(i, i + IN_CHUNK).map((p) => p.phone));
       if (error) throw new HttpError("Erro ao consultar os contatos.", 500);
       for (const r of (data ?? []) as Existing[]) existing.set(r.phone, r);
     }
 
-    const chipKeys = await companyChipKeys(admin, inst.org_id);
+    // Contato interno (chip da empresa ou telefone da lista interna) nunca recebe responsável.
+    const internalKeys = await internalPhoneKeys(admin, inst.org_id);
     const toInsert: Record<string, unknown>[] = [];
     const toUpdate: Existing[] = [];
     for (const p of page) {
       const cur = existing.get(p.phone);
+      const internal = internalKeys.has(phoneKey(p.phone) ?? "-");
       if (!cur) {
         toInsert.push({
           org_id: inst.org_id,
           phone: p.phone,
           name: p.pushName,
           push_name: p.pushName,
-          owner_id: inst.owner_id,
+          owner_id: internal ? null : inst.owner_id,
           source_instance_id: inst.id,
-          is_internal: chipKeys.has(phoneKey(p.phone) ?? "-"),
+          is_internal: internal,
         });
         continue;
       }
@@ -120,7 +123,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const next: Existing = { ...cur };
       if (!cur.name && p.pushName) next.name = p.pushName;
       if (!cur.push_name && p.pushName) next.push_name = p.pushName;
-      if (!cur.owner_id && inst.owner_id) next.owner_id = inst.owner_id;
+      if (!cur.owner_id && inst.owner_id && !internal && !cur.is_internal) next.owner_id = inst.owner_id;
       if (!cur.source_instance_id) next.source_instance_id = inst.id;
       if (
         next.name !== cur.name ||

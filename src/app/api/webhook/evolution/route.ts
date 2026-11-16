@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { MEDIA_TYPES, downloadAndStoreMedia } from "@/lib/media-server";
 import { applyMessageAutomation } from "@/lib/stages";
 import { parseContent } from "@/lib/message-parse";
-import { isCompanyChipPhone } from "@/lib/internal-contacts";
+import { isInternalPhone } from "@/lib/internal-contacts";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -79,11 +79,11 @@ async function ensureContact(
   orgId: string,
   phone: string,
   pushName: string | null
-): Promise<string> {
+): Promise<{ id: string; isInternal: boolean }> {
   const find = () =>
     admin
       .from("contacts")
-      .select("id, push_name")
+      .select("id, push_name, is_internal")
       .eq("org_id", orgId)
       .eq("phone", phone)
       .maybeSingle();
@@ -99,9 +99,9 @@ async function ensureContact(
         org_id: orgId,
         phone,
         push_name: pushName,
-        is_internal: await isCompanyChipPhone(admin, orgId, phone),
+        is_internal: await isInternalPhone(admin, orgId, phone),
       })
-      .select("id, push_name")
+      .select("id, push_name, is_internal")
       .single();
     if (ins.error) {
       // Corrida com outro evento criando o mesmo contato: busca de novo.
@@ -117,13 +117,15 @@ async function ensureContact(
     if (upd.error) throw new DbError("contacts update");
   }
 
-  return contact.id as string;
+  return { id: contact.id as string, isInternal: contact.is_internal === true };
 }
 
 async function ensureConversation(
   admin: Admin,
   inst: Instance,
-  contactId: string
+  contactId: string,
+  contactIsInternal: boolean,
+  phone: string
 ): Promise<string> {
   const find = () =>
     admin
@@ -137,13 +139,17 @@ async function ensureConversation(
   if (error) throw new DbError("conversations select");
   if (existing) return existing.id as string;
 
+  // Contato interno (marcado, chip da empresa ou telefone de gestor) nunca tem responsável:
+  // a conversa nasce sem assigned_to em vez de herdar o dono do chip. Só checa na criação.
+  const internal = contactIsInternal || (await isInternalPhone(admin, inst.org_id, phone));
+
   const ins = await admin
     .from("conversations")
     .insert({
       org_id: inst.org_id,
       contact_id: contactId,
       instance_id: inst.id,
-      assigned_to: inst.owner_id,
+      assigned_to: internal ? null : inst.owner_id,
       sector_id: inst.sector_id,
     })
     .select("id")
@@ -176,8 +182,8 @@ async function handleUpsert(admin: Admin, inst: Instance, item: any) {
       ? item.pushName.trim()
       : null;
 
-  const contactId = await ensureContact(admin, inst.org_id, phone, pushName);
-  const conversationId = await ensureConversation(admin, inst, contactId);
+  const contact = await ensureContact(admin, inst.org_id, phone, pushName);
+  const conversationId = await ensureConversation(admin, inst, contact.id, contact.isInternal, phone);
 
   // O trigger do banco atualiza last_message_at, preview e unread_count.
   const row: Record<string, unknown> = {

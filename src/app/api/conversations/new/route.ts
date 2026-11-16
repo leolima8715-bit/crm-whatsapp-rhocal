@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireProfile } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
-import { isCompanyChipPhone } from "@/lib/internal-contacts";
+import { isInternalPhone } from "@/lib/internal-contacts";
 import { normalizePhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Admin } from "@/lib/users";
@@ -42,12 +42,12 @@ async function crmStartedRecently(admin: Admin, instanceId: string): Promise<num
     .map((c) => Date.parse(c.created_at as string));
 }
 
-type ContactRow = { id: string; name: string | null; owner_id: string | null };
+type ContactRow = { id: string; name: string | null; owner_id: string | null; is_internal: boolean | null };
 
 async function findContact(admin: Admin, orgId: string, phone: string) {
   const { data } = await admin
     .from("contacts")
-    .select("id, name, owner_id")
+    .select("id, name, owner_id, is_internal")
     .eq("org_id", orgId)
     .eq("phone", phone)
     .maybeSingle();
@@ -147,8 +147,10 @@ export async function POST(req: Request) {
     }
 
     // Contato: cria ou reaproveita (responsável = quem iniciou, se estiver sem).
+    // Exceção: contato interno (marcado, chip da empresa ou telefone de gestor) nunca tem responsável.
     let contact: ContactRow | null =
       phone === phoneIn ? existingContact : await findContact(admin, profile.org_id, phone);
+    const internal = !!contact?.is_internal || (await isInternalPhone(admin, profile.org_id, phone));
     if (!contact) {
       const ins = await admin
         .from("contacts")
@@ -156,10 +158,10 @@ export async function POST(req: Request) {
           org_id: profile.org_id,
           phone,
           name: name || null,
-          owner_id: user.id,
-          is_internal: await isCompanyChipPhone(admin, profile.org_id, phone),
+          owner_id: internal ? null : user.id,
+          is_internal: internal,
         })
-        .select("id, name, owner_id")
+        .select("id, name, owner_id, is_internal")
         .single();
       if (ins.error) {
         if (ins.error.code !== "23505") throw new HttpError("Erro ao salvar o contato.", 500);
@@ -170,9 +172,15 @@ export async function POST(req: Request) {
     }
     if (!contact) throw new HttpError("Erro ao salvar o contato.", 500);
 
-    const patch: { name?: string; owner_id?: string } = {};
+    const patch: { name?: string; owner_id?: string | null; is_internal?: boolean } = {};
     if (name && !contact.name) patch.name = name;
-    if (!contact.owner_id) patch.owner_id = user.id;
+    if (internal) {
+      // Contato que já existia sem a marca (ou com responsável): vira interno e fica sem responsável.
+      if (!contact.is_internal) patch.is_internal = true;
+      if (contact.owner_id) patch.owner_id = null;
+    } else if (!contact.owner_id) {
+      patch.owner_id = user.id;
+    }
     if (Object.keys(patch).length) {
       const { error } = await admin.from("contacts").update(patch).eq("id", contact.id);
       if (error) throw new HttpError("Erro ao atualizar o contato.", 500);
@@ -188,7 +196,7 @@ export async function POST(req: Request) {
           org_id: profile.org_id,
           contact_id: contact.id,
           instance_id: inst.id,
-          assigned_to: contact.owner_id,
+          assigned_to: internal ? null : contact.owner_id,
           sector_id: inst.sector_id,
         })
         .select("id")

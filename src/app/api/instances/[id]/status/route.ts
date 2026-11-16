@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse, getOwnedInstance, requireGestor } from "@/lib/auth";
 import { evolutionFetch } from "@/lib/evolution";
+import { markInternalContacts } from "@/lib/internal-contacts";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,18 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .eq("id", inst.id)
       .eq("org_id", orgId);
 
-    return NextResponse.json({ status, phone });
+    // O telefone do chip só é conhecido ao conectar: contatos que já existiam com esse número
+    // passam a ser internos (antes, is_internal só era calculado na criação do contato).
+    let marked = 0;
+    if (phone && phone !== (inst.phone ?? null)) {
+      try {
+        marked = await markInternalContacts(admin, orgId);
+      } catch (e) {
+        console.error("[status] remarcar contatos internos:", (e as Error).message);
+      }
+    }
+
+    return NextResponse.json({ status, phone, marked_internal: marked });
   } catch (e) {
     return errorResponse(e);
   }
