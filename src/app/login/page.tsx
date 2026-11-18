@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -99,6 +100,13 @@ export default function LoginPage() {
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
+
+          <Link
+            href="/esqueci-senha"
+            className="block text-center text-sm text-accent-text hover:underline"
+          >
+            Esqueci minha senha
+          </Link>
         </form>
       </div>
     </main>

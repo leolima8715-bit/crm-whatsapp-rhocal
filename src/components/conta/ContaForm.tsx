@@ -57,7 +57,7 @@ export default function ContaForm({
     <section className="mx-auto w-full max-w-md flex-1 p-5">
       {mustChange && (
         <p className="mb-4 rounded-lg border border-warn/50 px-4 py-3 text-sm font-bold text-warn">
-          Defina sua nova senha para começar a usar o CRM
+          Por segurança, crie sua senha pessoal
         </p>
       )}
       <div className="mb-6 rounded-lg border border-subtle bg-panel p-4">
@@ -66,7 +66,7 @@ export default function ContaForm({
       </div>
 
       <form onSubmit={submit} className="space-y-4 rounded-lg border border-subtle bg-panel p-4">
-        <h1 className="font-bold">Trocar senha</h1>
+        <h1 className="font-bold">{mustChange ? "Criar senha pessoal" : "Trocar senha"}</h1>
 
         <label className="block text-sm">
           <span className="mb-1 block text-secondary">Nova senha (mínimo 10 caracteres, com letras e números)</span>

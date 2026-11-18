@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       full_name: fullName,
       role,
       active: true,
+      must_change_password: true,
     });
     if (profileErr) {
       console.error("[users] perfil não criado:", profileErr.message);

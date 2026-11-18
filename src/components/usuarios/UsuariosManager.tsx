@@ -449,7 +449,7 @@ function PasswordModal({
     setSaving(true);
     try {
       await api(`/api/users/${user.id}/password`, "POST", { password });
-      onDone(`Senha de ${user.full_name} redefinida.`);
+      onDone(`Senha provisória de ${user.full_name} definida. Ela precisará trocá-la no próximo acesso.`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -460,8 +460,13 @@ function PasswordModal({
   return (
     <Modal title={`Redefinir senha · ${user.full_name}`} onClose={() => !saving && onClose()}>
       <form onSubmit={submit} className="space-y-4">
+        <p className="rounded-lg border border-warn/50 px-3 py-2 text-xs text-warn">
+          Uso de emergência. Para o dia a dia, peça que a pessoa use “Esqueci minha senha” na
+          tela de login. Esta senha é provisória: no próximo acesso, {user.full_name} será
+          obrigado(a) a criar uma senha pessoal.
+        </p>
         <div className="text-sm">
-          <span className="mb-1 block text-secondary">Nova senha (mínimo 8 caracteres)</span>
+          <span className="mb-1 block text-secondary">Senha provisória (mínimo 8 caracteres)</span>
           <div className="flex gap-2">
             <input
               autoFocus

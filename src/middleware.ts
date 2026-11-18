@@ -32,7 +32,11 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   // /api/bridge/* tem autenticação própria (x-bridge-secret), sem sessão de usuário.
   const isPublic =
-    path.startsWith("/login") || path.startsWith("/api/webhook") || path.startsWith("/api/bridge");
+    path.startsWith("/login") ||
+    path === "/esqueci-senha" ||
+    path === "/redefinir-senha" ||
+    path.startsWith("/api/webhook") ||
+    path.startsWith("/api/bridge");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
@@ -54,12 +58,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Troca obrigatória de senha: só /conta, a rota de troca, o logout (client -> /login) e a API de senha.
+  // Troca obrigatória de senha: só /trocar-senha, a API de senha e o logout (client -> /login).
   if (user && !isPublic) {
-    const allowed =
-      path === "/conta" ||
-      path.startsWith("/conta/") ||
-      path === "/api/account/password";
+    const allowed = path === "/trocar-senha" || path === "/api/account/password";
     if (!allowed) {
       const { data: prof } = await supabase
         .from("profiles")
@@ -74,7 +75,7 @@ export async function middleware(request: NextRequest) {
           );
         }
         const url = request.nextUrl.clone();
-        url.pathname = "/conta";
+        url.pathname = "/trocar-senha";
         url.search = "";
         return NextResponse.redirect(url);
       }

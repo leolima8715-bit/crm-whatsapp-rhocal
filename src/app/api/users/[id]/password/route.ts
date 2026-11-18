@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { orgId } = await requireGestor();
+    const { orgId, user: gestor } = await requireGestor();
     const admin = createAdminClient();
     const target = await getOrgProfile(admin, params.id, orgId);
 
@@ -16,6 +16,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const { error } = await admin.auth.admin.updateUserById(target.id, { password });
     if (error) throw new HttpError("Não foi possível redefinir a senha.", 500);
+
+    // A senha definida pelo gestor é provisória: a pessoa precisa criar a dela no próximo acesso.
+    // Se o próprio gestor redefine a sua, a senha já é pessoal e não há o que forçar.
+    if (target.id !== gestor.id) {
+      const { error: flagErr } = await admin
+        .from("profiles")
+        .update({ must_change_password: true })
+        .eq("id", target.id);
+      if (flagErr) {
+        console.error("[users] must_change_password não definido:", flagErr.message);
+        throw new HttpError(
+          "A senha foi redefinida, mas não foi possível exigir a troca no próximo acesso. Tente novamente.",
+          500
+        );
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
