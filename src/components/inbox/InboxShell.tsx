@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { CONVERSATIONS_PAGE_SIZE, fetchConversation, fetchConversations } from "@/lib/inbox-queries";
+import {
+  CONVERSATIONS_PAGE_SIZE,
+  DEFAULT_CONVERSATION_QUERY,
+  fetchConversation,
+  fetchConversations,
+  fetchConversationsChecked,
+  type ConversationQuery,
+} from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
 import {
   isUnassignedForUser,
@@ -20,6 +27,9 @@ import { AUDIENCE_STORAGE_KEY, DEFAULT_FILTERS } from "./ConversationFilters";
 import ChatWindow from "./ChatWindow";
 import ContactPanel from "./ContactPanel";
 import NewConversationModal from "./NewConversationModal";
+
+// Com filtro ativo, a lista carrega páginas sozinha até ter pelo menos este tanto de itens.
+const MIN_FILTERED_ROWS = 30;
 
 function sortConversations(list: ConversationRow[]) {
   return [...list].sort((a, b) => {
@@ -98,25 +108,88 @@ export default function InboxShell({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // Filtros que vão na query do servidor (a busca por texto espera o usuário parar de digitar).
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const queryFilters = useMemo<ConversationQuery>(() => {
+    const q: ConversationQuery = {};
+    if (filters.status !== "all") q.status = filters.status;
+    if (filters.audience !== "all") q.audience = filters.audience === "team" ? "team" : "clients";
+    if (isGestor && filters.assignee) q.assignee = filters.assignee;
+    if (isGestor && filters.instance) q.instance = filters.instance;
+    if (filters.sector) q.sector = filters.sector;
+    if (filters.stage) q.stage = filters.stage;
+    if (debouncedSearch) q.search = debouncedSearch;
+    return q;
+  }, [filters, isGestor, debouncedSearch]);
+  const queryKey = JSON.stringify(queryFilters);
+  const queryRef = useRef(queryFilters);
+  queryRef.current = queryFilters;
+
+  // Chave da consulta cujo resultado está na lista; diferente de queryKey = buscando no servidor.
+  const [loadedKey, setLoadedKey] = useState(() => JSON.stringify(DEFAULT_CONVERSATION_QUERY));
+  // Cada troca de filtro invalida respostas em andamento (carregar mais, releituras).
+  const requestRef = useRef(0);
+  // Se carregar mais falhar, a carga automática para (senão repetiria o erro sem fim).
+  const autoLoadStopped = useRef(false);
+
   const loadMore = useCallback(async () => {
     if (loadingMore) return;
+    const req = requestRef.current;
     setLoadingMore(true);
     try {
-      const page = await fetchConversations(
+      const page = await fetchConversationsChecked(
         supabase,
         CONVERSATIONS_PAGE_SIZE,
-        pagesRef.current * CONVERSATIONS_PAGE_SIZE
+        pagesRef.current * CONVERSATIONS_PAGE_SIZE,
+        queryRef.current
       );
+      if (req !== requestRef.current) return;
       pagesRef.current += 1;
       setHasMore(page.length >= CONVERSATIONS_PAGE_SIZE);
       setConversations((prev) => {
         const ids = new Set(prev.map((c) => c.id));
         return sortConversations([...prev, ...page.filter((c) => !ids.has(c.id))]);
       });
+    } catch {
+      autoLoadStopped.current = true;
+      setNotice("Não foi possível carregar mais conversas. Tente novamente.");
     } finally {
       setLoadingMore(false);
     }
   }, [supabase, loadingMore]);
+
+  // Trocou filtro/busca: refaz a lista no servidor, a partir da primeira página.
+  useEffect(() => {
+    const req = ++requestRef.current;
+    if (queryKey === loadedKey) return; // voltou ao que já está na lista: descarta respostas pendentes
+    autoLoadStopped.current = false;
+    const query = queryFilters;
+    fetchConversationsChecked(supabase, CONVERSATIONS_PAGE_SIZE, 0, query)
+      .then((page) => {
+        if (req !== requestRef.current) return;
+        pagesRef.current = 1;
+        setHasMore(page.length >= CONVERSATIONS_PAGE_SIZE);
+        setConversations((prev) => {
+          // A conversa aberta continua na tela mesmo que o filtro novo não a inclua.
+          const keep = prev.find((c) => c.id === selectedRef.current);
+          const rows = keep && !page.some((c) => c.id === keep.id) ? [...page, keep] : page;
+          return sortConversations(rows);
+        });
+      })
+      .catch(() => {
+        if (req !== requestRef.current) return;
+        setNotice("Não foi possível aplicar os filtros. Tente novamente.");
+      })
+      .finally(() => {
+        if (req === requestRef.current) setLoadedKey(queryKey);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryKey, supabase]);
 
   // Pessoas e setores para os seletores (transferência e filtros).
   const loadAssignees = useCallback(() => {
@@ -147,8 +220,10 @@ export default function InboxShell({
       if (timer) return;
       timer = setTimeout(async () => {
         timer = null;
+        const req = requestRef.current;
         const limit = pagesRef.current * CONVERSATIONS_PAGE_SIZE;
-        const fresh = await fetchConversations(supabase, limit);
+        const fresh = await fetchConversations(supabase, limit, 0, queryRef.current);
+        if (req !== requestRef.current) return; // filtro mudou durante a leitura
         setHasMore(fresh.length >= limit);
         // A conversa aberta fora das páginas carregadas só é mantida se a RLS ainda a liberar.
         const sel = selectedRef.current;
@@ -323,8 +398,10 @@ export default function InboxShell({
     let subscribedBefore = false;
 
     const refetchAll = async () => {
+      const req = requestRef.current;
       const limit = pagesRef.current * CONVERSATIONS_PAGE_SIZE;
-      const fresh = await fetchConversations(supabase, limit);
+      const fresh = await fetchConversations(supabase, limit, 0, queryRef.current);
+      if (req !== requestRef.current) return;
       setHasMore(fresh.length >= limit);
       setConversations(sortConversations(fresh));
     };
@@ -443,10 +520,30 @@ export default function InboxShell({
     const digits = term.replace(/\D/g, "");
     return byTab.filter((c) => {
       const name = displayName(c.contact).toLowerCase();
+      const alt = `${c.contact?.name ?? ""} ${c.contact?.push_name ?? ""}`.toLowerCase();
       const phone = c.contact?.phone ?? "";
-      return name.includes(term) || (digits.length > 0 && phone.includes(digits));
+      return name.includes(term) || alt.includes(term) || (digits.length > 0 && phone.includes(digits));
     });
   }, [base, filters.tab, search, currentUserId, isGestor]);
+
+  // Buscando no servidor: filtro/busca mudou e a lista ainda não chegou (ou está digitando).
+  const busy = queryKey !== loadedKey || search.trim() !== debouncedSearch || loadingMore;
+  const filtersActive =
+    filters.status !== "all" ||
+    filters.audience !== "all" ||
+    filters.tab !== "all" ||
+    !!search.trim() ||
+    !!filters.stage ||
+    !!filters.sector ||
+    (isGestor && (!!filters.assignee || !!filters.instance));
+
+  // Com filtro ativo e poucas conversas na tela, carrega as próximas páginas sozinho até
+  // juntar o suficiente ou acabarem as páginas (cobre o que não vai na query, como as abas).
+  useEffect(() => {
+    if (!filtersActive || !hasMore || busy || autoLoadStopped.current) return;
+    if (filtered.length >= MIN_FILTERED_ROWS) return;
+    loadMore();
+  }, [filtersActive, hasMore, busy, filtered.length, loadMore]);
 
   // Chips de setor: gestor vê todos; os demais só os setores presentes nas conversas acessíveis.
   const sectorChips = useMemo(() => {
@@ -479,7 +576,8 @@ export default function InboxShell({
     <div className="flex min-h-0 flex-1">
       <ConversationList
         conversations={filtered}
-        totalCount={conversations.length}
+        busy={busy}
+        filtersActive={filtersActive}
         selectedId={selectedId}
         onSelect={handleSelect}
         search={search}

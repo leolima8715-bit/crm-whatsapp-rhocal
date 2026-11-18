@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { CONVERSATIONS_PAGE_SIZE, fetchConversation, fetchConversations } from "@/lib/inbox-queries";
+import {
+  CONVERSATIONS_PAGE_SIZE,
+  DEFAULT_CONVERSATION_QUERY,
+  fetchConversation,
+  fetchConversations,
+} from "@/lib/inbox-queries";
 import { isUuid } from "@/lib/users";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/phone";
@@ -51,7 +56,10 @@ export default async function InboxPage({
     ownsInstance = !!owned?.length;
   }
 
-  const conversations = profile ? await fetchConversations(supabase, CONVERSATIONS_PAGE_SIZE) : [];
+  // Primeira página já com o filtro padrão (Abertas) aplicado na query.
+  const conversations = profile
+    ? await fetchConversations(supabase, CONVERSATIONS_PAGE_SIZE, 0, DEFAULT_CONVERSATION_QUERY)
+    : [];
   // Página cheia = pode haver mais conversas antigas (o "Carregar mais" busca o restante).
   const hasMore = conversations.length >= CONVERSATIONS_PAGE_SIZE;
 

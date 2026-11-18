@@ -24,7 +24,8 @@ export type Filters = {
 
 type Props = {
   conversations: ConversationRow[];
-  totalCount: number;
+  busy: boolean; // buscando conversas no servidor
+  filtersActive: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
   search: string;
@@ -47,7 +48,8 @@ type Props = {
 
 export default function ConversationList({
   conversations,
-  totalCount,
+  busy,
+  filtersActive,
   selectedId,
   onSelect,
   search,
@@ -96,12 +98,16 @@ export default function ConversationList({
       )}
 
       <ul className="min-h-0 flex-1 overflow-y-auto">
-        {totalCount === 0 && (
+        {/* "Nenhuma conversa" só depois de buscar tudo: enquanto carrega ou há mais páginas, mostra "Buscando". */}
+        {conversations.length === 0 && (busy || hasMore) && (
+          <li className="p-4 text-sm text-secondary">Buscando conversas...</li>
+        )}
+        {conversations.length === 0 && !busy && !hasMore && !filtersActive && (
           <li className="p-4 text-sm text-secondary">
             Nenhuma conversa ainda. Quando chegar uma mensagem, ela aparece aqui.
           </li>
         )}
-        {totalCount > 0 && conversations.length === 0 && (
+        {conversations.length === 0 && !busy && !hasMore && filtersActive && (
           <li className="p-4 text-sm text-secondary">Nenhuma conversa encontrada.</li>
         )}
 
