@@ -168,6 +168,7 @@ export default function ChatWindow({
   }
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nearBottom = useRef(true);
   const forceScroll = useRef(true);
@@ -341,6 +342,20 @@ export default function ChatWindow({
     }
     if (messages.length > 0 && hasMore && el.scrollHeight <= el.clientHeight) loadOlder();
   }, [messages, hasMore, loadOlder]);
+
+  // Mídias/imagens que terminam de carregar aumentam a altura do conteúdo: enquanto o
+  // usuário não rolou para cima (nearBottom) ou a conversa acabou de abrir, mantém no fim.
+  useEffect(() => {
+    const content = contentRef.current;
+    const el = scrollRef.current;
+    if (!content || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (anchor.current) return;
+      if (forceScroll.current || nearBottom.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, [conversationId]);
 
   function onScroll() {
     const el = scrollRef.current;
@@ -562,7 +577,7 @@ export default function ChatWindow({
 
   return (
     <section
-      className="chat-bg relative flex min-w-0 flex-1 flex-col"
+      className="chat-bg relative flex min-h-0 min-w-0 flex-1 flex-col"
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {
           e.preventDefault();
@@ -585,7 +600,7 @@ export default function ChatWindow({
           borderTop: `8px solid ${sectorStyle(sector.color).stripe}`,
           backgroundColor: alpha(sectorStyle(sector.color).stripe, 0.18),
         }}
-        className="flex items-center gap-3 px-5 py-3"
+        className="flex shrink-0 items-center gap-3 px-5 py-3"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-accent-text">
           {initials(name)}
@@ -617,8 +632,9 @@ export default function ChatWindow({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-5 py-4"
+        className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
       >
+        <div ref={contentRef} className="space-y-1.5">
         {loadingOlder && (
           <p className="flex items-center justify-center gap-2 pb-2 text-xs text-secondary">
             <Loader2 size={12} className="animate-spin" /> Carregando mensagens anteriores...
@@ -694,6 +710,7 @@ export default function ChatWindow({
             </div>
           );
         })}
+        </div>
       </div>
       {showJump && (
         <button
@@ -708,7 +725,7 @@ export default function ChatWindow({
 
       <footer
         style={{ borderTop: `3px solid ${sectorStyle(sector.color).stripe}` }}
-        className="bg-panel p-3"
+        className="shrink-0 bg-panel p-3"
       >
         {pending && (
           <AttachmentPanel

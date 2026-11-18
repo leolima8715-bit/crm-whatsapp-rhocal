@@ -646,7 +646,7 @@ export default function InboxShell({
           </div>
         </div>
       )}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {notice && (
           <p className="border-b border-accent/40 bg-accent/10 px-5 py-2 text-sm text-accent-text">
             {notice}
