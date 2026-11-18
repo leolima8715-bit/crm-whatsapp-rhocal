@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
 
+// Link "Esqueci minha senha" desativado por enquanto. As páginas /esqueci-senha e /redefinir-senha
+// continuam publicadas; mude para true para reativar o link.
+const SHOW_FORGOT_PASSWORD = false;
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -101,12 +105,14 @@ export default function LoginPage() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
 
-          <Link
-            href="/esqueci-senha"
-            className="block text-center text-sm text-accent-text hover:underline"
-          >
-            Esqueci minha senha
-          </Link>
+          {SHOW_FORGOT_PASSWORD && (
+            <Link
+              href="/esqueci-senha"
+              className="block text-center text-sm text-accent-text hover:underline"
+            >
+              Esqueci minha senha
+            </Link>
+          )}
         </form>
       </div>
     </main>
