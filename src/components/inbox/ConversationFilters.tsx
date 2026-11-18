@@ -13,8 +13,11 @@ export const DEFAULT_FILTERS: Filters = {
   instance: "",
   sector: "",
   stage: "",
-  audience: "clients",
+  audience: "all",
 };
+
+// Chave do localStorage com a escolha de público (Clientes/Equipe/Todos) do usuário.
+export const AUDIENCE_STORAGE_KEY = "inbox:audience";
 
 const TAB_LABEL: Record<Tab, string> = { all: "Todas", mine: "Minhas", unassigned: "Sem responsável" };
 const AUDIENCE_LABEL: Record<Audience, string> = { clients: "Clientes", team: "Equipe", all: "Todos" };
@@ -95,11 +98,12 @@ export default function ConversationFilters({
   if (filters.tab !== "all") {
     active.push({ key: "tab", label: TAB_LABEL[filters.tab], clear: () => set({ tab: "all" }) });
   }
-  if (filters.audience !== "clients") {
-    active.push({ key: "audience", label: AUDIENCE_LABEL[filters.audience], clear: () => set({ audience: "clients" }) });
+  if (filters.audience !== "all") {
+    active.push({ key: "audience", label: AUDIENCE_LABEL[filters.audience], clear: () => set({ audience: "all" }) });
   }
-  if (filters.status !== "open") {
-    active.push({ key: "status", label: STATUS_LABEL[filters.status], clear: () => set({ status: "open" }) });
+  // O status também é um filtro (o padrão "Abertas" esconde as demais): fica sempre visível e contado.
+  if (filters.status !== "all") {
+    active.push({ key: "status", label: STATUS_LABEL[filters.status], clear: () => set({ status: "all" }) });
   }
   if (isGestor && filters.assignee) {
     active.push({
@@ -162,8 +166,8 @@ export default function ConversationFilters({
         </button>
       </div>
 
-      {active.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
+      <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
+          {active.length === 0 && <span className="text-[11px] text-secondary">Sem filtros</span>}
           {active.map((a) => (
             <span
               key={a.key}
@@ -192,8 +196,7 @@ export default function ConversationFilters({
           >
             Limpar
           </button>
-        </div>
-      )}
+      </div>
 
       {open && (
         <>
@@ -272,7 +275,7 @@ export default function ConversationFilters({
               <section>
                 <h3 className={`${sectionCls} mb-1.5`}>Contatos</h3>
                 <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por tipo de contato">
-                  {(["clients", "team", "all"] as Audience[]).map((a) => (
+                  {(["all", "clients", "team"] as Audience[]).map((a) => (
                     <button
                       key={a}
                       onClick={() => set({ audience: a })}

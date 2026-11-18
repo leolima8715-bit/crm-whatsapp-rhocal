@@ -32,6 +32,10 @@ type Props = {
   filters: Filters;
   onFilters: (f: Filters) => void;
   counts: { all: number; mine: number; mineUnread: number; unassigned: number };
+  hiddenByStatus: number;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
   isGestor: boolean;
   assignees: Assignee[];
   instances: { id: string; label: string }[];
@@ -51,6 +55,10 @@ export default function ConversationList({
   filters,
   onFilters,
   counts,
+  hiddenByStatus,
+  hasMore,
+  loadingMore,
+  onLoadMore,
   isGestor,
   assignees,
   instances,
@@ -74,6 +82,18 @@ export default function ConversationList({
         stages={stages}
         onNewConversation={onNewConversation}
       />
+
+      {hiddenByStatus > 0 && (
+        <p className="shrink-0 border-b border-subtle bg-panel px-3 py-1.5 text-[11px] text-secondary">
+          {hiddenByStatus} {hiddenByStatus === 1 ? "conversa oculta" : "conversas ocultas"} pelo filtro de status.{" "}
+          <button
+            onClick={() => onFilters({ ...filters, status: "all" })}
+            className="text-accent-text underline"
+          >
+            Mostrar todas
+          </button>
+        </p>
+      )}
 
       <ul className="min-h-0 flex-1 overflow-y-auto">
         {totalCount === 0 && (
@@ -175,6 +195,17 @@ export default function ConversationList({
             </li>
           );
         })}
+        {hasMore && (
+          <li className="p-2">
+            <button
+              onClick={onLoadMore}
+              disabled={loadingMore}
+              className="w-full rounded-lg border border-subtle px-3 py-2 text-sm text-primary transition hover:border-accent hover:text-accent-text disabled:opacity-60"
+            >
+              {loadingMore ? "Carregando..." : "Carregar mais conversas"}
+            </button>
+          </li>
+        )}
       </ul>
     </aside>
   );

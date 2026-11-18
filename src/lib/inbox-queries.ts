@@ -14,12 +14,21 @@ export const MESSAGE_SELECT =
 type Sb = SupabaseClient<any, any, any>;
 
 // Funciona com o client do servidor e do navegador (ambos respeitam a RLS do usuário).
-export async function fetchConversations(supabase: Sb, limit = 100): Promise<ConversationRow[]> {
+export const CONVERSATIONS_PAGE_SIZE = 100;
+
+// `offset` pagina na mesma ordem da lista (last_message_at desc); o id desempata para a página
+// seguinte não repetir nem pular conversas com o mesmo horário.
+export async function fetchConversations(
+  supabase: Sb,
+  limit = CONVERSATIONS_PAGE_SIZE,
+  offset = 0
+): Promise<ConversationRow[]> {
   const { data } = await supabase
     .from("conversations")
     .select(CONVERSATION_SELECT)
     .order("last_message_at", { ascending: false, nullsFirst: false })
-    .limit(limit);
+    .order("id", { ascending: false })
+    .range(offset, offset + limit - 1);
   return (data ?? []) as unknown as ConversationRow[];
 }
 

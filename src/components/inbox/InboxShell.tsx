@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
+import { CONVERSATIONS_PAGE_SIZE, fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { displayName } from "@/lib/format";
 import {
   isUnassignedForUser,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/inbox-types";
 import { conversationSector, sectorInfo, type SectorInfo } from "@/lib/sector-style";
 import ConversationList, { type Filters } from "./ConversationList";
+import { AUDIENCE_STORAGE_KEY, DEFAULT_FILTERS } from "./ConversationFilters";
 import ChatWindow from "./ChatWindow";
 import ContactPanel from "./ContactPanel";
 import NewConversationModal from "./NewConversationModal";
@@ -30,6 +31,7 @@ function sortConversations(list: ConversationRow[]) {
 
 export default function InboxShell({
   initialConversations,
+  initialHasMore = false,
   currentUserId,
   currentRole,
   currentUserName,
@@ -37,6 +39,7 @@ export default function InboxShell({
   phoneLookup = null,
 }: {
   initialConversations: ConversationRow[];
+  initialHasMore?: boolean;
   currentUserId: string;
   currentRole: string;
   currentUserName: string;
@@ -52,15 +55,29 @@ export default function InboxShell({
   );
   const [choiceOpen, setChoiceOpen] = useState(!!phoneLookup && phoneLookup.matches.length > 1);
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Filters>({
-    tab: "all",
-    status: "open",
-    assignee: "",
-    instance: "",
-    sector: "",
-    stage: "",
-    audience: "clients",
-  });
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+
+  // Público (Clientes/Equipe/Todos): lembra a escolha do usuário entre recargas e logins.
+  // Lido após a montagem para não divergir do HTML renderizado no servidor.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(AUDIENCE_STORAGE_KEY);
+      if (saved === "clients" || saved === "team" || saved === "all") {
+        setFilters((f) => (f.audience === saved ? f : { ...f, audience: saved }));
+      }
+    } catch {
+      // localStorage indisponível (janela privada, bloqueado): segue com o padrão.
+    }
+  }, []);
+
+  const updateFilters = useCallback((next: Filters) => {
+    setFilters(next);
+    try {
+      localStorage.setItem(AUDIENCE_STORAGE_KEY, next.audience);
+    } catch {
+      // sem persistência: só vale nesta sessão.
+    }
+  }, []);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [stages, setStages] = useState<StageRow[]>([]);
@@ -74,6 +91,32 @@ export default function InboxShell({
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
   const readInFlight = useRef(new Set<string>());
+
+  // Paginação: quantas páginas já foram carregadas (as releituras refazem todas elas, para não
+  // perder as conversas antigas que o usuário já abriu com "Carregar mais").
+  const pagesRef = useRef(1);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchConversations(
+        supabase,
+        CONVERSATIONS_PAGE_SIZE,
+        pagesRef.current * CONVERSATIONS_PAGE_SIZE
+      );
+      pagesRef.current += 1;
+      setHasMore(page.length >= CONVERSATIONS_PAGE_SIZE);
+      setConversations((prev) => {
+        const ids = new Set(prev.map((c) => c.id));
+        return sortConversations([...prev, ...page.filter((c) => !ids.has(c.id))]);
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [supabase, loadingMore]);
 
   // Pessoas e setores para os seletores (transferência e filtros).
   const loadAssignees = useCallback(() => {
@@ -104,8 +147,10 @@ export default function InboxShell({
       if (timer) return;
       timer = setTimeout(async () => {
         timer = null;
-        const fresh = await fetchConversations(supabase, 100);
-        // A conversa aberta fora das 100 mais recentes só é mantida se a RLS ainda a liberar.
+        const limit = pagesRef.current * CONVERSATIONS_PAGE_SIZE;
+        const fresh = await fetchConversations(supabase, limit);
+        setHasMore(fresh.length >= limit);
+        // A conversa aberta fora das páginas carregadas só é mantida se a RLS ainda a liberar.
         const sel = selectedRef.current;
         const extra =
           sel && !fresh.some((f) => f.id === sel) ? await fetchConversation(supabase, sel) : null;
@@ -278,7 +323,9 @@ export default function InboxShell({
     let subscribedBefore = false;
 
     const refetchAll = async () => {
-      const fresh = await fetchConversations(supabase, 100);
+      const limit = pagesRef.current * CONVERSATIONS_PAGE_SIZE;
+      const fresh = await fetchConversations(supabase, limit);
+      setHasMore(fresh.length >= limit);
       setConversations(sortConversations(fresh));
     };
 
@@ -359,6 +406,20 @@ export default function InboxShell({
     [conversations, filters, isGestor, sectors]
   );
 
+  // Conversas que passariam nos demais filtros mas estão escondidas só pelo status escolhido.
+  const hiddenByStatus = useMemo(() => {
+    if (filters.status === "all") return 0;
+    return conversations.filter(
+      (c) =>
+        c.status !== filters.status &&
+        (filters.audience === "all" || (filters.audience === "team") === !!c.contact?.is_internal) &&
+        (!isGestor || !filters.assignee || ownerIdOf(c) === filters.assignee) &&
+        (!isGestor || !filters.instance || c.instance_id === filters.instance) &&
+        (!filters.sector || (conversationSector(c, sectors).id ?? "none") === filters.sector) &&
+        (!filters.stage || c.stage_id === filters.stage)
+    ).length;
+  }, [conversations, filters, isGestor, sectors]);
+
   const counts = useMemo(() => {
     const mine = base.filter((c) => ownerIdOf(c) === currentUserId);
     return {
@@ -424,8 +485,12 @@ export default function InboxShell({
         search={search}
         onSearch={setSearch}
         filters={filters}
-        onFilters={setFilters}
+        onFilters={updateFilters}
         counts={counts}
+        hiddenByStatus={hiddenByStatus}
+        hasMore={hasMore}
+        loadingMore={loadingMore}
+        onLoadMore={loadMore}
         isGestor={isGestor}
         assignees={assignees}
         instances={instances}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { fetchConversation, fetchConversations } from "@/lib/inbox-queries";
+import { CONVERSATIONS_PAGE_SIZE, fetchConversation, fetchConversations } from "@/lib/inbox-queries";
 import { isUuid } from "@/lib/users";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/phone";
@@ -51,9 +51,11 @@ export default async function InboxPage({
     ownsInstance = !!owned?.length;
   }
 
-  const conversations = profile ? await fetchConversations(supabase, 100) : [];
+  const conversations = profile ? await fetchConversations(supabase, CONVERSATIONS_PAGE_SIZE) : [];
+  // Página cheia = pode haver mais conversas antigas (o "Carregar mais" busca o restante).
+  const hasMore = conversations.length >= CONVERSATIONS_PAGE_SIZE;
 
-  // ?conversation=ID: abre essa conversa (mesmo que esteja fora das 100 mais recentes).
+  // ?conversation=ID: abre essa conversa (mesmo que esteja fora da primeira página).
   let initialSelectedId: string | null = null;
   const wanted = searchParams.conversation;
   if (profile && isUuid(wanted)) {
@@ -165,6 +167,7 @@ export default async function InboxPage({
       {profile ? (
         <InboxShell
           initialConversations={conversations}
+          initialHasMore={hasMore}
           currentUserId={user.id}
           currentRole={profile.role}
           currentUserName={profile.full_name}
