@@ -248,6 +248,7 @@ export async function POST(req: Request) {
           .from("messages")
           .update({ sent_by: user.id })
           .eq("org_id", profile.org_id)
+          .eq("conversation_id", convId)
           .eq("external_id", externalId);
       } else {
         console.error("[new-conv] erro ao gravar mensagem:", error.message);

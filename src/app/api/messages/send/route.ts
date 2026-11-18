@@ -84,6 +84,7 @@ export async function POST(req: Request) {
         .from("messages")
         .update({ sent_by: user.id })
         .eq("org_id", conv.org_id)
+        .eq("conversation_id", conv.id)
         .eq("external_id", externalId)
         .select(MESSAGE_SELECT)
         .single();

@@ -130,6 +130,7 @@ export async function POST(req: Request) {
         .from("messages")
         .update({ sent_by: user.id, media_path: path, media_mime: mime })
         .eq("org_id", conv.org_id)
+        .eq("conversation_id", conv.id)
         .eq("external_id", externalId)
         .select(MESSAGE_SELECT)
         .single();

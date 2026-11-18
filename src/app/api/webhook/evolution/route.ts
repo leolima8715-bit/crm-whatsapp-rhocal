@@ -268,11 +268,14 @@ async function handleMessageUpdate(admin: Admin, inst: Instance, item: any) {
   const next = mapAckStatus(item?.status ?? item?.update?.status);
   if (!externalId || !next) return;
 
+  // A mesma mensagem pode existir nas conversas de dois chips da empresa (mesmo external_id):
+  // escopa pela instância que recebeu o evento para pegar só a cópia dela.
   const { data: msg, error } = await admin
     .from("messages")
-    .select("id, status, direction, conversation_id")
+    .select("id, status, direction, conversation_id, conversation:conversations!inner(instance_id)")
     .eq("org_id", inst.org_id)
     .eq("external_id", externalId)
+    .eq("conversation.instance_id", inst.id)
     .maybeSingle();
   if (error) throw new DbError("messages select");
   if (!msg) return;
