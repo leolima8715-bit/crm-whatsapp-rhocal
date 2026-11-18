@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, CheckCheck, Clock, Loader2, Mic, Paperclip } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, ArrowDown, Check, CheckCheck, Clock, Loader2, Mic, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchMessages } from "@/lib/inbox-queries";
 import { displayName, formatContactLabel, formatPhone, formatTime, initials } from "@/lib/format";
@@ -46,7 +46,15 @@ function mergeMessage(list: MessageRow[], msg: MessageRow): MessageRow[] {
     next[idx] = { ...next[idx], ...msg };
     return next;
   }
-  return [...list, msg].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  return [...list, msg].sort(compareMessages);
+}
+
+// Ordem cronológica; desempata por created_at textual (microssegundos) e por id.
+function compareMessages(a: MessageRow, b: MessageRow): number {
+  const d = Date.parse(a.created_at) - Date.parse(b.created_at);
+  if (d !== 0) return d;
+  if (a.created_at !== b.created_at) return a.created_at < b.created_at ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 function StatusIcon({ status }: { status: MessageRow["status"] }) {
@@ -164,6 +172,20 @@ export default function ChatWindow({
   const nearBottom = useRef(true);
   const forceScroll = useRef(true);
 
+  // Paginação (mensagens anteriores).
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState(false);
+  const [reachedStart, setReachedStart] = useState(false); // só após carregar páginas anteriores
+  const [showJump, setShowJump] = useState(false);
+  const messagesRef = useRef<MessageRow[]>([]);
+  const hasMoreRef = useRef(false);
+  const loadingOlderRef = useRef(false);
+  const activeConv = useRef<string | null>(null);
+  const anchor = useRef<{ height: number; top: number } | null>(null);
+  messagesRef.current = messages;
+  hasMoreRef.current = hasMore;
+
   useEffect(() => {
     setCanRecord(typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia);
   }, []);
@@ -176,35 +198,96 @@ export default function ChatWindow({
     };
   }, [pending]);
 
-  const load = useCallback(async () => {
-    if (!conversationId) return;
+  // Carrega as 50 mais recentes. Na carga inicial substitui a lista; em recargas
+  // (reconexão do Realtime) apenas mescla, preservando páginas anteriores já carregadas.
+  const load = useCallback(
+    async (initial: boolean) => {
+      if (!conversationId) return;
+      try {
+        const page = await fetchMessages(supabase, conversationId);
+        if (activeConv.current !== conversationId) return;
+        setMessages((prev) => {
+          let merged = initial ? page.rows : prev.filter((m) => !isTemp(m));
+          if (!initial) for (const r of page.rows) merged = mergeMessage(merged, r);
+          // Mantém mensagens otimistas ainda não confirmadas.
+          for (const t of prev.filter(isTemp)) merged = mergeMessage(merged, t);
+          return merged;
+        });
+        if (initial) setHasMore(page.hasMore);
+        setLoadError(null);
+      } catch {
+        if (activeConv.current === conversationId) {
+          setLoadError("Não foi possível carregar as mensagens.");
+        }
+      } finally {
+        if (activeConv.current === conversationId) setLoading(false);
+      }
+    },
+    [supabase, conversationId]
+  );
+
+  // Carrega as 50 anteriores à mais antiga já carregada, mantendo a posição de leitura.
+  const loadOlder = useCallback(async () => {
+    if (!conversationId || loadingOlderRef.current || !hasMoreRef.current) return;
+    const oldest = messagesRef.current.find((m) => !isTemp(m));
+    if (!oldest) return;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    setOlderError(false);
     try {
-      const rows = await fetchMessages(supabase, conversationId, 200);
-      // Mantém mensagens otimistas ainda não confirmadas.
+      const page = await fetchMessages(supabase, conversationId, {
+        before: { created_at: oldest.created_at, id: oldest.id },
+      });
+      if (activeConv.current !== conversationId) return;
+      const el = scrollRef.current;
+      if (el) anchor.current = { height: el.scrollHeight, top: el.scrollTop };
       setMessages((prev) => {
-        let merged = rows;
-        for (const t of prev.filter(isTemp)) merged = mergeMessage(merged, t);
+        let merged = prev;
+        for (const r of page.rows) merged = mergeMessage(merged, r);
         return merged;
       });
-      setLoadError(null);
+      setHasMore(page.hasMore);
+      if (!page.hasMore) setReachedStart(true);
     } catch {
-      setLoadError("Não foi possível carregar as mensagens.");
+      if (activeConv.current === conversationId) setOlderError(true);
     } finally {
-      setLoading(false);
+      loadingOlderRef.current = false;
+      if (activeConv.current === conversationId) setLoadingOlder(false);
     }
   }, [supabase, conversationId]);
 
   // Carga inicial + tempo real das mensagens desta conversa.
   useEffect(() => {
+    activeConv.current = conversationId;
+    setMessages([]);
+    setHasMore(false);
+    setReachedStart(false);
+    setOlderError(false);
+    setShowJump(false);
+    setLoadingOlder(false);
+    loadingOlderRef.current = false;
+    anchor.current = null;
+    nearBottom.current = true;
     if (!conversationId) return;
     setLoading(true);
     forceScroll.current = true;
-    load();
+    load(true);
 
     let subscribedBefore = false;
-    const handler = (payload: { new: unknown }) => {
+    const handler = (payload: { new: unknown; eventType?: string }) => {
       const msg = payload.new as MessageRow;
-      setMessages((prev) => mergeMessage(prev, msg));
+      setMessages((prev) => {
+        // Atualização de mensagem fora da janela carregada (mais antiga): ignora,
+        // para não abrir um buraco na lista. Ela aparece ao carregar a página dela.
+        if (
+          hasMoreRef.current &&
+          !prev.some((m) => m.id === msg.id || (msg.external_id && m.external_id === msg.external_id))
+        ) {
+          const oldest = prev.find((m) => !isTemp(m));
+          if (oldest && compareMessages(msg, oldest) < 0) return prev;
+        }
+        return mergeMessage(prev, msg);
+      });
     };
 
     const channel = supabase
@@ -231,7 +314,7 @@ export default function ChatWindow({
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          if (subscribedBefore) load();
+          if (subscribedBefore) load(false);
           subscribedBefore = true;
         }
       });
@@ -241,20 +324,39 @@ export default function ChatWindow({
     };
   }, [supabase, conversationId, load]);
 
-  // Rola para o fim ao abrir ou se o usuário já estava perto do fim.
-  useEffect(() => {
+  // Após cada renderização da lista: (1) se acabou de entrar uma página anterior,
+  // preserva a posição de leitura; (2) senão, rola ao fim ao abrir ou se o usuário já
+  // estava perto do fim; (3) se a lista não enche a tela, busca mais antigas.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    if (anchor.current) {
+      el.scrollTop = el.scrollHeight - anchor.current.height + anchor.current.top;
+      anchor.current = null;
+      return;
+    }
     if (forceScroll.current || nearBottom.current) {
       el.scrollTop = el.scrollHeight;
       if (messages.length > 0) forceScroll.current = false;
     }
-  }, [messages]);
+    if (messages.length > 0 && hasMore && el.scrollHeight <= el.clientHeight) loadOlder();
+  }, [messages, hasMore, loadOlder]);
 
   function onScroll() {
     const el = scrollRef.current;
     if (!el) return;
-    nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    nearBottom.current = near;
+    setShowJump(!near);
+    if (el.scrollTop < 80 && hasMoreRef.current && !olderError) loadOlder();
+  }
+
+  function jumpToLatest() {
+    const el = scrollRef.current;
+    if (!el) return;
+    nearBottom.current = true;
+    setShowJump(false);
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }
 
   // Troca a mensagem otimista pela real (ou marca como falha) sem duplicar balões.
@@ -511,11 +613,28 @@ export default function ChatWindow({
         />
       </header>
 
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="flex-1 space-y-1.5 overflow-y-auto px-5 py-4"
+        className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-5 py-4"
       >
+        {loadingOlder && (
+          <p className="flex items-center justify-center gap-2 pb-2 text-xs text-secondary">
+            <Loader2 size={12} className="animate-spin" /> Carregando mensagens anteriores...
+          </p>
+        )}
+        {olderError && !loadingOlder && (
+          <p className="pb-2 text-center text-xs text-danger">
+            Não foi possível carregar as anteriores.{" "}
+            <button type="button" onClick={loadOlder} className="underline">
+              Tentar de novo
+            </button>
+          </p>
+        )}
+        {reachedStart && !hasMore && !loadingOlder && (
+          <p className="pb-2 text-center text-xs text-secondary">Início da conversa</p>
+        )}
         {loading && messages.length === 0 && (
           <p className="flex items-center justify-center gap-2 text-sm text-secondary">
             <Loader2 size={14} className="animate-spin" /> Carregando mensagens...
@@ -575,6 +694,16 @@ export default function ChatWindow({
             </div>
           );
         })}
+      </div>
+      {showJump && (
+        <button
+          type="button"
+          onClick={jumpToLatest}
+          className="absolute bottom-3 right-5 flex items-center gap-1.5 rounded-full bg-panel px-3 py-1.5 text-xs font-bold text-accent-text shadow-lg transition hover:bg-panel-hover"
+        >
+          <ArrowDown size={14} /> Ir para as mais recentes
+        </button>
+      )}
       </div>
 
       <footer

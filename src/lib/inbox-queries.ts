@@ -108,16 +108,34 @@ export async function fetchConversation(supabase: Sb, id: string): Promise<Conve
   return (data ?? null) as unknown as ConversationRow | null;
 }
 
+export const MESSAGES_PAGE_SIZE = 50;
+
+export type MessagesPage = { rows: MessageRow[]; hasMore: boolean };
+
+// Página de mensagens (as mais recentes, ou as anteriores a `before`), devolvida em
+// ordem cronológica. Ordem no banco: created_at desc, id desc (id desempata).
+// Cursor `before` = (created_at, id) da mensagem mais antiga já carregada.
+// Busca limit+1 para saber se existem mais mensagens antigas.
 export async function fetchMessages(
   supabase: Sb,
   conversationId: string,
-  limit = 200
-): Promise<MessageRow[]> {
-  const { data } = await supabase
+  opts: { limit?: number; before?: { created_at: string; id: string } } = {}
+): Promise<MessagesPage> {
+  const limit = opts.limit ?? MESSAGES_PAGE_SIZE;
+  let q = supabase
     .from("messages")
     .select(MESSAGE_SELECT)
-    .eq("conversation_id", conversationId)
+    .eq("conversation_id", conversationId);
+  if (opts.before) {
+    const { created_at, id } = opts.before;
+    q = q.or(`created_at.lt."${created_at}",and(created_at.eq."${created_at}",id.lt.${id})`);
+  }
+  const { data, error } = await q
     .order("created_at", { ascending: false })
-    .limit(limit);
-  return ((data ?? []) as unknown as MessageRow[]).reverse();
+    .order("id", { ascending: false })
+    .limit(limit + 1);
+  if (error) throw new Error(error.message);
+  const all = (data ?? []) as unknown as MessageRow[];
+  const hasMore = all.length > limit;
+  return { rows: all.slice(0, limit).reverse(), hasMore };
 }
